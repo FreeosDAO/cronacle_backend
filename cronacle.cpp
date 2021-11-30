@@ -41,6 +41,43 @@ public:
 
 }
 
+void reguser(name user) {
+
+  require_auth(user);
+
+  // is the user already registered?
+  // find the account in the user table
+  users_index users_table(get_self(), user.value);
+  auto user_iterator = users_table.begin();
+
+  check(user_iterator == users_table.end(), "user is already registered");
+
+  // add record to the users table
+  users_table.emplace(get_self(), [&](auto &u) {  
+    u.time = current_time_point();  
+    u.proton_account = user;
+  });
+
+  // update the system record - number of users and CLS
+  system_index system_table(get_self(), get_self().value);
+  auto system_iterator = system_table.begin();
+  if (system_iterator == system_table.end()) {
+    // emplace
+    system_table.emplace(
+        get_self(), [&](auto &sys) {
+          sys.init = current_time_point();
+          sys.usercount = 1;
+          sys.cls = UCLS; // the CLS for the first verified user          
+        });
+  } else {
+    // modify
+    system_table.modify(system_iterator, _self, [&](auto &sys) {
+      sys.usercount += 1;
+      sys.cls += UCLS; // add to the CLS for the verified user
+    });
+  }
+}
+
   [[eosio::action]]
   void storebtc(uint32_t btcprice) {
     time_point now = current_time_point();

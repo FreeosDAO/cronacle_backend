@@ -9,6 +9,10 @@ const string POINT_CURRENCY_CODE = "POINT";
 const uint8_t POINT_CURRENCY_PRECISION = 4;
 const symbol POINT_CURRENCY_SYMBOL = symbol(POINT_CURRENCY_CODE, POINT_CURRENCY_PRECISION);
 
+// User contribution to Conditionally Limited Supply
+const asset UCLS = asset(1000000, POINT_CURRENCY_SYMBOL);
+
+
 // SYSTEM
 // system table
 struct[[ eosio::table("system"), eosio::contract("cronacle") ]] system_record {
