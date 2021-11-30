@@ -18,6 +18,16 @@
             ]
         },
         {
+            "name": "init",
+            "base": "",
+            "fields": [
+                {
+                    "name": "iterations_start",
+                    "type": "time_point"
+                }
+            ]
+        },
+        {
             "name": "storebtc",
             "base": "",
             "fields": [
@@ -96,6 +106,11 @@
         }
     ],
     "actions": [
+        {
+            "name": "init",
+            "type": "init",
+            "ricardian_contract": ""
+        },
         {
             "name": "storebtc",
             "type": "storebtc",

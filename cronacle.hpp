@@ -3,6 +3,11 @@
 #include <eosio/asset.hpp>
 
 using namespace eosio;
+using namespace std;
+
+const string POINT_CURRENCY_CODE = "POINT";
+const uint8_t POINT_CURRENCY_PRECISION = 4;
+const symbol POINT_CURRENCY_SYMBOL = symbol(POINT_CURRENCY_CODE, POINT_CURRENCY_PRECISION);
 
 // SYSTEM
 // system table
