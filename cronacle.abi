@@ -42,6 +42,36 @@
             ]
         },
         {
+            "name": "system_record",
+            "base": "",
+            "fields": [
+                {
+                    "name": "init",
+                    "type": "time_point"
+                },
+                {
+                    "name": "iteration",
+                    "type": "uint16"
+                },
+                {
+                    "name": "usercount",
+                    "type": "uint32"
+                },
+                {
+                    "name": "claimevents",
+                    "type": "uint32"
+                },
+                {
+                    "name": "participants",
+                    "type": "uint32"
+                },
+                {
+                    "name": "cls",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
             "name": "user",
             "base": "",
             "fields": [
@@ -86,6 +116,13 @@
         {
             "name": "btcprice",
             "type": "btctick",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "system",
+            "type": "system_record",
             "index_type": "i64",
             "key_names": [],
             "key_types": []
