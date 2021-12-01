@@ -18,12 +18,36 @@
             ]
         },
         {
+            "name": "credit",
+            "base": "",
+            "fields": [
+                {
+                    "name": "amount",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
             "name": "init",
             "base": "",
             "fields": [
                 {
                     "name": "iterations_start",
                     "type": "time_point"
+                }
+            ]
+        },
+        {
+            "name": "maintain",
+            "base": "",
+            "fields": [
+                {
+                    "name": "action",
+                    "type": "string"
+                },
+                {
+                    "name": "user",
+                    "type": "name"
                 }
             ]
         },
@@ -122,6 +146,11 @@
             "ricardian_contract": ""
         },
         {
+            "name": "maintain",
+            "type": "maintain",
+            "ricardian_contract": ""
+        },
+        {
             "name": "reguser",
             "type": "reguser",
             "ricardian_contract": ""
@@ -146,6 +175,13 @@
         {
             "name": "btcprice",
             "type": "btctick",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "credits",
+            "type": "credit",
             "index_type": "i64",
             "key_names": [],
             "key_types": []

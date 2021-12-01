@@ -9,6 +9,20 @@ const string POINT_CURRENCY_CODE = "POINT";
 const uint8_t POINT_CURRENCY_PRECISION = 4;
 const symbol POINT_CURRENCY_SYMBOL = symbol(POINT_CURRENCY_CODE, POINT_CURRENCY_PRECISION);
 
+#ifdef PRODUCTION
+const std::string CREDIT_CURRENCY_CODE = "FOOBAR";
+const std::string ERR_CREDIT_CURRENCY_MESSAGE = "you must credit your account with FOOBAR";
+const uint8_t CREDIT_CURRENCY_PRECISION = 6;
+const symbol CREDIT_CURRENCY_SYMBOL = symbol(CREDIT_CURRENCY_CODE, CREDIT_CURRENCY_PRECISION);
+const std::string CREDIT_CURRENCY_CONTRACT = "xtokens";
+#else
+const std::string CREDIT_CURRENCY_CODE = "XPR";
+const std::string ERR_CREDIT_CURRENCY_MESSAGE = "you must credit your account with XPR";
+const uint8_t CREDIT_CURRENCY_PRECISION = 4;
+const symbol CREDIT_CURRENCY_SYMBOL = symbol(CREDIT_CURRENCY_CODE, CREDIT_CURRENCY_PRECISION);
+const std::string CREDIT_CURRENCY_CONTRACT = "eosio.token";
+#endif
+
 // User contribution to Conditionally Limited Supply
 const asset UCLS = asset(1000000, POINT_CURRENCY_SYMBOL);
 
@@ -46,3 +60,10 @@ std::string dfinity_principal;
 uint64_t primary_key() const { return proton_account.value; }
 };
 using users_index = eosio::multi_index<"users"_n, user>;
+
+// CREDITS
+struct[[ eosio::table("credits"), eosio::contract("cronacle") ]] credit {
+asset amount;
+uint64_t primary_key() const { return 0; }  // ensures single record per user
+};
+using credits_index = eosio::multi_index<"credits"_n, credit>;
