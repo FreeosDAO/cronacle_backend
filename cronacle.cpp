@@ -6,7 +6,7 @@
 using namespace eosio;
 using namespace std;
 
-const std::string VERSION = "0.1.0";
+const std::string VERSION = "0.1.1";
 
 class [[eosio::contract("cronacle")]] cronacle : public eosio::contract {
 public:
@@ -41,13 +41,14 @@ public:
 
 }
 
+[[eosio::action]]
 void reguser(name user) {
 
   require_auth(user);
 
   // is the user already registered?
   // find the account in the user table
-  users_index users_table(get_self(), user.value);
+  users_index users_table(get_self(), get_self().value);
   auto user_iterator = users_table.begin();
 
   check(user_iterator == users_table.end(), "user is already registered");

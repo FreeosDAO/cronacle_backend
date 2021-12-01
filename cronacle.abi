@@ -28,6 +28,16 @@
             ]
         },
         {
+            "name": "reguser",
+            "base": "",
+            "fields": [
+                {
+                    "name": "user",
+                    "type": "name"
+                }
+            ]
+        },
+        {
             "name": "storebtc",
             "base": "",
             "fields": [
@@ -109,6 +119,11 @@
         {
             "name": "init",
             "type": "init",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "reguser",
+            "type": "reguser",
             "ricardian_contract": ""
         },
         {
