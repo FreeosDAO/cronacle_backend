@@ -4,6 +4,54 @@
     "types": [],
     "structs": [
         {
+            "name": "auction",
+            "base": "",
+            "fields": [
+                {
+                    "name": "number",
+                    "type": "uint32"
+                },
+                {
+                    "name": "nftid",
+                    "type": "uint64"
+                },
+                {
+                    "name": "start",
+                    "type": "time_point"
+                },
+                {
+                    "name": "end",
+                    "type": "time_point"
+                },
+                {
+                    "name": "winner",
+                    "type": "name"
+                },
+                {
+                    "name": "bidamount",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "bid",
+            "base": "",
+            "fields": [
+                {
+                    "name": "user",
+                    "type": "name"
+                },
+                {
+                    "name": "nft_id",
+                    "type": "uint64"
+                },
+                {
+                    "name": "bidamount",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
             "name": "btctick",
             "base": "",
             "fields": [
@@ -14,6 +62,16 @@
                 {
                     "name": "usdprice",
                     "type": "uint32"
+                }
+            ]
+        },
+        {
+            "name": "claim",
+            "base": "",
+            "fields": [
+                {
+                    "name": "user",
+                    "type": "name"
                 }
             ]
         },
@@ -94,19 +152,7 @@
                     "type": "time_point"
                 },
                 {
-                    "name": "iteration",
-                    "type": "uint16"
-                },
-                {
                     "name": "usercount",
-                    "type": "uint32"
-                },
-                {
-                    "name": "claimevents",
-                    "type": "uint32"
-                },
-                {
-                    "name": "participants",
                     "type": "uint32"
                 },
                 {
@@ -134,12 +180,49 @@
             ]
         },
         {
+            "name": "userbid",
+            "base": "",
+            "fields": [
+                {
+                    "name": "bidtime",
+                    "type": "time_point"
+                },
+                {
+                    "name": "bidder",
+                    "type": "name"
+                },
+                {
+                    "name": "bidamount",
+                    "type": "asset"
+                },
+                {
+                    "name": "nftid",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
             "name": "version",
             "base": "",
             "fields": []
         }
     ],
     "actions": [
+        {
+            "name": "auction",
+            "type": "auction",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "bid",
+            "type": "bid",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "claim",
+            "type": "claim",
+            "ricardian_contract": ""
+        },
         {
             "name": "init",
             "type": "init",
@@ -172,6 +255,20 @@
         }
     ],
     "tables": [
+        {
+            "name": "auctions",
+            "type": "auction",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "bids",
+            "type": "userbid",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
         {
             "name": "btcprice",
             "type": "btctick",
