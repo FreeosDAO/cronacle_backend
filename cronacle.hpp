@@ -31,6 +31,12 @@ const uint32_t AUCTION_LENGTH_SECONDS = 600;    // 10 minutes
 const uint32_t AUCTION_START = 0;
 const uint32_t AUCTION_END = 540;
 
+#ifdef PRODUCTION
+  asset BID_INCREMENT = asset(20000000, CREDIT_CURRENCY_SYMBOL);
+#else
+  asset BID_INCREMENT = asset(200000, CREDIT_CURRENCY_SYMBOL);
+#endif
+
 
 // SYSTEM
 // system table
@@ -103,3 +109,14 @@ using auctions_index = eosio::multi_index<"auctions"_n, auction,
 indexed_by<"byndftid"_n, const_mem_fun<auction, uint64_t, &auction::get_secondary>>,
 indexed_by<"bywinner"_n, const_mem_fun<auction, uint64_t, &auction::get_tertiary>>
 >;
+
+// NFTs for offer
+struct[[ eosio::table("nfts"), eosio::contract("cronacle") ]] nft {
+    uint32_t    number;
+    uint64_t    nftid;
+    
+    uint64_t primary_key() const { return number; }
+    uint64_t get_secondary() const { return nftid; }
+};
+using nfts_index = eosio::multi_index<"nfts"_n, nft,
+indexed_by<"bynftid"_n, const_mem_fun<nft, uint64_t, &nft::get_secondary>>>;

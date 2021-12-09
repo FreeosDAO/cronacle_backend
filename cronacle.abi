@@ -4,6 +4,16 @@
     "types": [],
     "structs": [
         {
+            "name": "addnft",
+            "base": "",
+            "fields": [
+                {
+                    "name": "nftid",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
             "name": "auction",
             "base": "",
             "fields": [
@@ -110,6 +120,20 @@
             ]
         },
         {
+            "name": "nft",
+            "base": "",
+            "fields": [
+                {
+                    "name": "number",
+                    "type": "uint32"
+                },
+                {
+                    "name": "nftid",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
             "name": "reguser",
             "base": "",
             "fields": [
@@ -209,6 +233,11 @@
     ],
     "actions": [
         {
+            "name": "addnft",
+            "type": "addnft",
+            "ricardian_contract": ""
+        },
+        {
             "name": "auction",
             "type": "auction",
             "ricardian_contract": ""
@@ -279,6 +308,13 @@
         {
             "name": "credits",
             "type": "credit",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "nfts",
+            "type": "nft",
             "index_type": "i64",
             "key_names": [],
             "key_types": []
