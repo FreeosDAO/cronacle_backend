@@ -23,18 +23,20 @@ const symbol CREDIT_CURRENCY_SYMBOL = symbol(CREDIT_CURRENCY_CODE, CREDIT_CURREN
 const std::string CREDIT_CURRENCY_CONTRACT = "eosio.token";
 #endif
 
+// atomicassets constants
+const name nft_account = name("atomicassets");
+
 // User contribution to Conditionally Limited Supply
 const asset UCLS = asset(1000000, POINT_CURRENCY_SYMBOL);
 
 // timing system
-const uint32_t AUCTION_LENGTH_SECONDS = 600;    // 10 minutes
-const uint32_t AUCTION_START = 0;
-const uint32_t AUCTION_END = 540;
+const uint32_t AUCTION_LENGTH_SECONDS = 600;            // 10 minutes
+const uint32_t AUCTION_BIDDING_PERIOD_SECONDS = 540;    // 9 minutes
 
 #ifdef PRODUCTION
-  asset BID_INCREMENT = asset(20000000, CREDIT_CURRENCY_SYMBOL);
+  asset BID_INCREMENT = asset(1000000, CREDIT_CURRENCY_SYMBOL);
 #else
-  asset BID_INCREMENT = asset(200000, CREDIT_CURRENCY_SYMBOL);
+  asset BID_INCREMENT = asset(10000, CREDIT_CURRENCY_SYMBOL);
 #endif
 
 
@@ -97,6 +99,7 @@ struct[[ eosio::table("auctions"), eosio::contract("cronacle") ]] auction {
     uint32_t    number;
     uint64_t    nftid;
     time_point  start;
+    time_point  bidding_end;
     time_point  end;
     name        winner;
     asset       bidamount;
@@ -106,7 +109,7 @@ struct[[ eosio::table("auctions"), eosio::contract("cronacle") ]] auction {
     uint64_t get_tertiary() const { return winner.value; }
 };
 using auctions_index = eosio::multi_index<"auctions"_n, auction,
-indexed_by<"byndftid"_n, const_mem_fun<auction, uint64_t, &auction::get_secondary>>,
+indexed_by<"bynftid"_n, const_mem_fun<auction, uint64_t, &auction::get_secondary>>,
 indexed_by<"bywinner"_n, const_mem_fun<auction, uint64_t, &auction::get_tertiary>>
 >;
 

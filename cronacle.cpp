@@ -6,7 +6,7 @@
 using namespace eosio;
 using namespace std;
 
-const std::string VERSION = "0.2.11";
+const std::string VERSION = "0.3.0";
 
 class [[eosio::contract("cronacle")]] cronacle : public eosio::contract {
 public:
@@ -26,7 +26,7 @@ public:
 
   // ACTION: INIT
   [[eosio::action]]
-  void init(time_point iterations_start) {
+  void init(time_point auctions_start) {
 
   require_auth(get_self());
 
@@ -35,13 +35,13 @@ public:
   if (system_iterator == system_table.end()) {
     // insert system record
     system_table.emplace(get_self(), [&](auto &sys) {
-      sys.init = iterations_start;
+      sys.init = auctions_start;
       sys.cls = asset(0, POINT_CURRENCY_SYMBOL);
       });
   } else {
     // modify system record
     system_table.modify(system_iterator, _self, [&](auto &sys) { 
-      sys.init = iterations_start;
+      sys.init = auctions_start;
       });
   }
 
@@ -158,7 +158,7 @@ void credit(name user, name to, asset quantity, std::string memo) {
 }
 
 // create_auction - create a new auction record based on system initialisation time, the current time and auction length
-void create_current_auction(uint64_t nft_id) {
+void create_auction(uint64_t nft_id) {
 
   // work out the start time from the system init time
   system_index system_table(get_self(), get_self().value);
@@ -171,9 +171,11 @@ void create_current_auction(uint64_t nft_id) {
   uint64_t now_secs = current_time_point().sec_since_epoch();
 
   uint64_t start_secs = now_secs - ((now_secs - init_secs) % AUCTION_LENGTH_SECONDS);
+  uint64_t bidding_end_secs = start_secs + AUCTION_BIDDING_PERIOD_SECONDS;
   uint64_t end_secs = start_secs + AUCTION_LENGTH_SECONDS;
 
   time_point start = time_point(seconds(start_secs));
+  time_point bidding_end = time_point(seconds(bidding_end_secs));
   time_point end = time_point(seconds(end_secs));
 
   // calculate the number of the auction
@@ -188,102 +190,17 @@ void create_current_auction(uint64_t nft_id) {
   // write the record
   auctions_table.emplace(get_self(), [&](auto &a) {
     a.number = next_number;
-    a.nft_id = nft_id;
+    a.nftid = nft_id;
     a.start = start;
+    a.bidding_end = bidding_end;
     a.end = end;
   });
 
 }
 
 
-// is_auction_current - helper function to determine if an auction is ongoing
-// side effect: creates the auction record if it doesn't already exist
-bool is_auction_current(uint64_t nft_id) {
-  auctions_index auctions_table(get_self(), get_self().value);
-  auto nft_idx = auctions_table.get_index<"bynftid"_n>();
-
-  auto auction_iterator = nft_idx.find(nft_id);
-  if (auction_iterator == nft_idx.end()) {
-    // the auction record is not found, so create it
-    create_current_auction(nft_id);
-    return true;
-  } else {
-    // the auction record exists, check that we are within start and end times
-    time_point now = current_time_point();
-    return (now >= auction_iterator->start && now <= auction_iterator->end) ? true : false;
-  }
-
-}
-
-// ACTION: BID
-[[eosio::action]]
-void bid(name user, uint64_t nft_id, asset bidamount) {
-  require_auth(user);
-
-  // check if the system is open for business
-  system_index system_table(get_self(), get_self().value);
-  auto system_iterator = system_table.begin();
-  check(system_iterator != system_table.end(), "the system record is undefined");
-  time_point init = system_iterator->init;
-  check(current_time_point() >= init, "the auction system is not open for business");
-
-  // check that the user is registered
-  users_index users_table(get_self(), get_self().value);
-  auto user_iterator = users_table.begin();
-  check(user_iterator != users_table.end(), "you must be registered in order to bid");
-
-  // check that the user has enough credit to support the bid
-  credits_index credits_table(get_self(), user.value);
-  auto credit_iterator = credits_table.begin();
-  check(credit_iterator != credits_table.end(), "you do not have a credit balance");
-  check(credit_iterator->amount >= bidamount, "you do not have sufficient credit to place your bid");
-
-  // The user should be bidding on either:
-  // 1. The first nft in the nfts table while the current auction is active
-  // 2. The second nft in the nfts table. This signals that a new auction has begun.
-  nfts_index nfts_table(get_self(), get_self().value);
-  auto nft_iterator = nfts_table.begin();
-  check(nft_iterator != nfts_table.end(), "no nft is offered for sale at this time");
-  uint64_t first_nft = nft_iterator->nftid;
-
-  if (nft_id == first_nft) {
-    check(is_auction_current(first_nft), "bidding has ended on this nft");
-  }
-  
-  // **********************
-
-  // check that the first nft is still open for bidding
-  auctions_index auctions_table(get_self(), get_self().value);
-  auto auction_iterator = auctions_table.rbegin();
-
-  // scenario 1: bidding on the first nft
-  if (nft_id == first_nft) {
-    if (auction_iterator == auctions_table.rend()) {
-    // bidding on first nft but there is no auction record, so create it
-    create_auction(nft_id);
-    // ...and point the iterator to the new record
-    auction_iterator = auctions_table.rbegin();
-  } else {
-    // there is an auction record - check that the auction is ongoing
-    check(is_auction_current)
-  }
-
-  }
-
-  
-  // advance to the second nft
-  //nft_iterator++;
-  //check()
-
-  
-
-
-  
-
-  // TODO: housekeeping - tidy up after the previous auction
-  tick();
-
-
+// add_bid - helper function to add a bid to the bids table
+void add_bid(name user, uint64_t nft_id, asset bidamount) {
 
   bids_index bids_table(get_self(), get_self().value);
   // count the number of bids
@@ -299,7 +216,7 @@ void bid(name user, uint64_t nft_id, asset bidamount) {
   auto amt_itr = amt_idx.end();
   amt_itr--;
 
-  asset bid_to_beat = asset(0, CREDIT_CURRENCY_SYMBOL); // zero bid
+  asset bid_to_beat = asset(0, CREDIT_CURRENCY_SYMBOL); // initialise to zero bid
   if (amt_itr != amt_idx.cend()) {
     bid_to_beat = amt_itr->bidamount;
   }
@@ -325,7 +242,7 @@ void bid(name user, uint64_t nft_id, asset bidamount) {
   end of debugging code */
   
 
-  const string bid_error = "you must start bidding with, or increase the highest bid by at least " + BID_INCREMENT.to_string();
+  const string bid_error = "you must start bidding, or increase the highest bid by at least " + BID_INCREMENT.to_string();
   check((bidamount > bid_to_beat) && ((bidamount - bid_to_beat) >= BID_INCREMENT), bid_error);
 
   // check if we are replacing a previous bid by the same user
@@ -355,67 +272,168 @@ void bid(name user, uint64_t nft_id, asset bidamount) {
       });
 
   }
+}
+
+[[eosio::action]]
+void xfer(name winner, uint64_t nft_id) {
+  uint64_t nft_array [] = { nft_id };
+  action transfer = action(
+      permission_level{get_self(), "active"_n}, nft_account, "transfer"_n,
+      std::make_tuple(get_self(), winner, nft_array, std::string("winner of nft auction")));
+
+    transfer.send();
+}
+
+
+// close_auction - helper function to close an existing auction
+void close_auction(uint64_t nft_id) {
+
+  // find the winning bid
+  bids_index bids_table(get_self(), get_self().value);
+  auto amt_idx = bids_table.get_index<"byamount"_n>();
+  auto bid_itr = amt_idx.end();
+  bid_itr--;
+  check(bid_itr != amt_idx.cend(), "there is no winning bid");
+
+  name winner = bid_itr->bidder;
+  asset bidamount = bid_itr->bidamount;
+
+  // transfer nft to the winner
+  uint64_t nft_array [] = { nft_id };
+  action transfer = action(
+      permission_level{get_self(), "active"_n}, nft_account, "transfer"_n,
+      std::make_tuple(get_self(), winner, nft_array, std::string("winner of nft auction")));
+
+    transfer.send();
+
+  // reduce the winner's credit by the bid amount
+  credits_index credit_table(get_self(), winner.value);
+  auto credit_iterator = credit_table.begin();
+  check(credit_iterator != credit_table.end(), "winning bidder does not have a credit record");
+  check(credit_iterator->amount >= bidamount, "winning bidder does not have sufficient credit");
+  credit_table.modify(credit_iterator, get_self(), [&](auto &c) {
+      c.amount -= bidamount;
+    });
+
+  // record the winner and winning bid in the auction record
+  auctions_index auctions_table(get_self(), get_self().value);
+  auto nft_idx = auctions_table.get_index<"bynftid"_n>();
+  auto auction_iterator = nft_idx.find(nft_id);
+  //check(auction_iterator != auctions_table.end(), "auction record is undefined");
+  check(auction_iterator != nft_idx.end(), "auction record is undefined");
+  nft_idx.modify(auction_iterator, get_self(), [&](auto &a) {
+    a.winner = winner;
+    a.bidamount = bidamount;
+  });
+  
+  // clear bids table
+  auto bid_iterator = bids_table.begin();
+  while (bid_iterator != bids_table.end()) {
+    bid_iterator = bids_table.erase(bid_iterator);
+  }
+
+  // delete the nft record
+  nfts_index nfts_table(get_self(), get_self().value);
+  auto nft_iterator = nfts_table.begin();
+  check(nft_iterator != nfts_table.end(), "nft record is undefined");
+  nfts_table.erase(nft_iterator);
 
 }
 
-// which auction are we in?
-uint16_t current_auction() {
+// ACTION: BID
+[[eosio::action]]
+void bid(name user, uint64_t nft_id, asset bidamount) {
+  require_auth(user);
 
-  uint16_t iteration = 0;
+  // check that the user is registered
+  users_index users_table(get_self(), get_self().value);
+  auto user_iterator = users_table.begin();
+  check(user_iterator != users_table.end(), "you must be registered in order to bid");
 
-  // get the start of freeos system time
+  // check if the system is open for business
   system_index system_table(get_self(), get_self().value);
   auto system_iterator = system_table.begin();
-  check(system_iterator != system_table.end(), "system record is undefined");
+  check(system_iterator != system_table.end(), "the system record is undefined");
   time_point init = system_iterator->init;
+  check(current_time_point() >= init, "the auction system is not open for business");
 
-  // how far are we into the current iteration?
-  uint64_t now_secs = current_time_point().sec_since_epoch();
-  uint64_t init_secs = init.sec_since_epoch();
+  // check that the user has enough credit to support the bid
+  credits_index credits_table(get_self(), user.value);
+  auto credit_iterator = credits_table.begin();
+  check(credit_iterator != credits_table.end(), "you do not have a credit balance");
+  check(credit_iterator->amount >= bidamount, "you do not have sufficient credit to place your bid");
 
-  if (now_secs >= init_secs) {
-    iteration = ((now_secs - init_secs) / AUCTION_LENGTH_SECONDS) + 1;
+  // The user should be bidding on either:
+  // 1. The first nft in the nfts table while the current auction is active
+  // 2. The second nft in the nfts table. This signals that a new auction has begun
+
+  // what are the first and second nft_ids?
+  // If there is no first nft record then nothing is on offer at this time
+  // Second nft_id = 0 if there is no second nft record
+  nfts_index nfts_table(get_self(), get_self().value);
+  auto nft_iterator = nfts_table.begin();
+  check(nft_iterator != nfts_table.end(), "no nft is offered for sale at this time");
+  uint64_t first_nft = nft_iterator->nftid;
+  nft_iterator++;
+  uint64_t second_nft = (nft_iterator != nfts_table.end()) ? nft_iterator->nftid : 0;
+
+  // auction/bid algorithm *******************************
+  time_point now = current_time_point();
+  const string no_bid_msg = "bidding is not open on this nft";
+
+  // check that bidding is for the first or second nft
+  check(nft_id == first_nft || nft_id == second_nft, no_bid_msg);
+
+  // is there an auction record for the nft?
+  auctions_index auctions_table(get_self(), get_self().value);
+  auto nft_idx = auctions_table.get_index<"bynftid"_n>();
+  auto auction_iterator = nft_idx.find(nft_id);
+
+  if (auction_iterator != nft_idx.end()) {
+    // Yes, there is an auction record for the bid nft
+    // check if bidding is still open; if yes then add the bid, otherwise refuse the bid
+    check(now >= auction_iterator->start && now <= auction_iterator->bidding_end, "bidding has ended for this nft");
+    add_bid(user, nft_id, bidamount);
+
+  } else {
+    // No, there is no auction record for the nft
+
+    if (nft_id == first_nft) {
+      // create the auction for the first nft
+      create_auction(nft_id);
+
+      // add the bid
+      add_bid(user, nft_id, bidamount);
+
+    } else {
+      // the bid is for the second nft
+
+      // is there an ongoing auction for the first nft? -- i.e. THE WHOLE PERIOD (bidding period + gap)
+      auto first_nft_iterator = nft_idx.find(first_nft);
+      check(first_nft_iterator != nft_idx.end(), no_bid_msg);
+      bool first_auction_ongoing = (now >= first_nft_iterator->start && now <= first_nft_iterator->end) ? true : false;
+      check(!first_auction_ongoing, no_bid_msg);
+
+      // valid bid for second nft, which means that bidding for the first nft has ended
+      close_auction(first_nft); // clear bids table + close auction record
+
+      // create an auction record for the second nft
+      create_auction(nft_id);
+
+      // add the user bid
+      add_bid(user, nft_id, bidamount);
+    }
+    
+
   }
   
-  return iteration;
 }
 
 // ACTION
 void tick() {
 
-  // do we need to tidy up after the previous auction has closed?
-  time_point now = current_time_point();
+  // TODO
 
-  // get the current auction record
-  // look for highest auction number - check if it is still active
-  auctions_index auctions_table(get_self(), get_self().value);
-  auto latest_itr = auctions_table.rbegin();
-
-  if (latest_itr != auctions_table.rend()) {
-    // there is an existing auction record, so clean up if necessary
-
-    // are
-  }
-
-
-  /* are we on a new auction?
-  system_index system_table(get_self(), get_self().value);
-  auto system_iterator = system_table.begin();
-  check(system_iterator != system_table.end(), "system record is undefined");
-
-  uint16_t recorded_auction = system_iterator->auction;
-  uint16_t actual_auction = current_auction();
-
-  if (recorded_auction != actual_auction) {
-    // update the recorded iteration
-    system_table.modify(system_iterator, _self, [&](auto &sys) {
-      sys.auction = actual_auction;
-    });
-
-    // run the new auction service routine
-    trigger_new_auction(actual_auction);
-  }
-  */
 }
 
 
@@ -424,49 +442,8 @@ void tick() {
 void claim(name user) {
   require_auth(user);
 
-  // check that the auction claim time has been reached
+  // TODO
  
-}
-
-
-// ACTION: AUCTION
-[[eosio::action]]
-void auction(
-    uint32_t number,
-    uint64_t nftid,
-    time_point start,
-    time_point end,
-    name winner,
-    asset bidamount) {
-
-  
-  // check to see if an auction is already underway
-  //time_point now = current_time_point();
-
-  // look for highest auction number - check if it is still active
-  auctions_index auctions_table(get_self(), get_self().value);
-  //auto latest_itr = auctions_table.rbegin();
-
-  //if (latest_itr == auctions_table.rend()) {
-    // table is empty, so create
-    auctions_table.emplace(
-      get_self(), [&](auto &a) {
-        a.number = number;
-        a.nftid = nftid;
-        a.start = start;
-        a.end = end;
-        a.winner = winner;
-        a.bidamount = bidamount;
-      });
-  //} else {
-  //  check(false, latest_itr->number);
-  //}
-
-}
-
-
-void trigger_new_auction(uint16_t auction) {
-
 }
 
 // ACTION: MAINTAIN
@@ -505,13 +482,11 @@ void maintain(string action, name user) {
 
       if (system_iterator == system_table.end()) {
         system_table.emplace(get_self(), [&](auto &sys) {
-          // sys.init = time_point("2021-12-05T00:00:00.000");
           sys.usercount = 1;
           sys.cls = asset(1000000, POINT_CURRENCY_SYMBOL);          
         });
       } else {
         system_table.modify(system_iterator, get_self(), [&](auto &sys) {
-          // sys.auction = current_auction();
           sys.usercount = 1;
           sys.cls = asset(1000000, POINT_CURRENCY_SYMBOL);
         });
@@ -553,9 +528,4 @@ void addnft(uint64_t nftid) {
   });
 }
 
-
-
-private:
-
-  
 };

@@ -30,6 +30,10 @@
                     "type": "time_point"
                 },
                 {
+                    "name": "bidding_end",
+                    "type": "time_point"
+                },
+                {
                     "name": "end",
                     "type": "time_point"
                 },
@@ -100,7 +104,7 @@
             "base": "",
             "fields": [
                 {
-                    "name": "iterations_start",
+                    "name": "auctions_start",
                     "type": "time_point"
                 }
             ]
@@ -229,17 +233,26 @@
             "name": "version",
             "base": "",
             "fields": []
+        },
+        {
+            "name": "xfer",
+            "base": "",
+            "fields": [
+                {
+                    "name": "winner",
+                    "type": "name"
+                },
+                {
+                    "name": "nft_id",
+                    "type": "uint64"
+                }
+            ]
         }
     ],
     "actions": [
         {
             "name": "addnft",
             "type": "addnft",
-            "ricardian_contract": ""
-        },
-        {
-            "name": "auction",
-            "type": "auction",
             "ricardian_contract": ""
         },
         {
@@ -280,6 +293,11 @@
         {
             "name": "version",
             "type": "version",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "xfer",
+            "type": "xfer",
             "ricardian_contract": ""
         }
     ],
