@@ -6,7 +6,7 @@
 using namespace eosio;
 using namespace std;
 
-const std::string VERSION = "0.3.0";
+const std::string VERSION = "0.4.2";
 
 class [[eosio::contract("cronacle")]] cronacle : public eosio::contract {
 public:
@@ -176,7 +176,7 @@ void create_auction(uint64_t nft_id) {
 
   time_point start = time_point(seconds(start_secs));
   time_point bidding_end = time_point(seconds(bidding_end_secs));
-  time_point end = time_point(seconds(end_secs));
+  time_point end = time_point(seconds(end_secs)); // TODO: adjust to 1 microsecond before this to ensure no overlap with next auction
 
   // calculate the number of the auction
   uint32_t last_number = 0;
@@ -213,11 +213,10 @@ void add_bid(name user, uint64_t nft_id, asset bidamount) {
 
   // find the winning bid
   auto amt_idx = bids_table.get_index<"byamount"_n>();
-  auto amt_itr = amt_idx.end();
-  amt_itr--;
+  auto amt_itr = amt_idx.rbegin();
 
   asset bid_to_beat = asset(0, CREDIT_CURRENCY_SYMBOL); // initialise to zero bid
-  if (amt_itr != amt_idx.cend()) {
+  if (amt_itr != amt_idx.rend()) {
     bid_to_beat = amt_itr->bidamount;
   }
 
@@ -275,11 +274,18 @@ void add_bid(name user, uint64_t nft_id, asset bidamount) {
 }
 
 [[eosio::action]]
-void xfer(name winner, uint64_t nft_id) {
-  uint64_t nft_array [] = { nft_id };
+void xfer(name from, name to, uint64_t nft_id, string memo) {
+
+  require_auth(from);
+
+  vector <uint64_t> nftids;
+  nftids.push_back(nft_id);
+  
   action transfer = action(
-      permission_level{get_self(), "active"_n}, nft_account, "transfer"_n,
-      std::make_tuple(get_self(), winner, nft_array, std::string("winner of nft auction")));
+      permission_level{get_self(), "active"_n},
+      nft_account,
+      "transfer"_n,
+      std::make_tuple(get_self(), to, nftids, memo));
 
     transfer.send();
 }
@@ -291,18 +297,22 @@ void close_auction(uint64_t nft_id) {
   // find the winning bid
   bids_index bids_table(get_self(), get_self().value);
   auto amt_idx = bids_table.get_index<"byamount"_n>();
-  auto bid_itr = amt_idx.end();
-  bid_itr--;
-  check(bid_itr != amt_idx.cend(), "there is no winning bid");
+  auto bid_itr = amt_idx.rbegin();
+  check(bid_itr != amt_idx.rend(), "there is no winning bid");
 
   name winner = bid_itr->bidder;
   asset bidamount = bid_itr->bidamount;
 
   // transfer nft to the winner
-  uint64_t nft_array [] = { nft_id };
+  vector <uint64_t> nftids;
+  nftids.push_back(nft_id);
+  string memo = "winner of auction for nft " + to_string(nft_id);
+
   action transfer = action(
-      permission_level{get_self(), "active"_n}, nft_account, "transfer"_n,
-      std::make_tuple(get_self(), winner, nft_array, std::string("winner of nft auction")));
+      permission_level{get_self(), "active"_n},
+      nft_account,
+      "transfer"_n,
+      std::make_tuple(get_self(), winner, nftids, memo));
 
     transfer.send();
 
@@ -340,13 +350,29 @@ void close_auction(uint64_t nft_id) {
 
 }
 
+// BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID
+// BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID
+// BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID
+// BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID
+// BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID
+// BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID
+// BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID
+// BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID
+// BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID
+// BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID
+// BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID
+// BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID
+// BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID
+// BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID
+// BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID
+
 // ACTION: BID
 [[eosio::action]]
 void bid(name user, uint64_t nft_id, asset bidamount) {
   require_auth(user);
 
   // check that the user is registered
-  users_index users_table(get_self(), get_self().value);
+  users_index users_table(get_self(), user.value);
   auto user_iterator = users_table.begin();
   check(user_iterator != users_table.end(), "you must be registered in order to bid");
 
@@ -494,6 +520,82 @@ void maintain(string action, name user) {
     }
 
     if (action == "clear auctions") {
+      auctions_index auctions_table(get_self(), get_self().value);
+      auto auctions_iterator = auctions_table.begin();
+
+      while (auctions_iterator != auctions_table.end()) {
+        auctions_iterator = auctions_table.erase(auctions_iterator);
+      }
+    }
+
+    if (action == "clear bids") {
+      bids_index bids_table(get_self(), get_self().value);
+      auto bids_iterator = bids_table.begin();
+
+      while (bids_iterator != bids_table.end()) {
+        bids_iterator = bids_table.erase(bids_iterator);
+      }
+    }
+
+    if (action == "add bids") {
+      bids_index bids_table(get_self(), get_self().value);
+
+      bids_table.emplace(get_self(), [&](auto &b) {
+          b.bidtime = current_time_point();
+          b.bidder = name("alanappleton");
+          b.bidamount = asset(2000000, CREDIT_CURRENCY_SYMBOL);
+          b.nftid = 4398046576806;
+        });
+
+        bids_table.emplace(get_self(), [&](auto &b) {
+          b.bidtime = current_time_point();
+          b.bidder = name("billbeaumont");
+          b.bidamount = asset(3000000, CREDIT_CURRENCY_SYMBOL);
+          b.nftid = 4398046576806;
+        });
+
+      bids_table.emplace(get_self(), [&](auto &b) {
+          b.bidtime = current_time_point();
+          b.bidder = name("celiacollins");
+          b.bidamount = asset(1000000, CREDIT_CURRENCY_SYMBOL);
+          b.nftid = 4398046576806;
+        });
+    }
+
+    if (action == "highest bid") {
+      bids_index bids_table(get_self(), get_self().value);
+
+      // count the number of bids
+      uint8_t bids_count = 0;
+      auto bids_itr = bids_table.begin();
+      while (bids_itr != bids_table.end()) {
+        bids_count++;
+        bids_itr++;
+      }
+
+      // find the winning bid
+      auto amt_idx = bids_table.get_index<"byamount"_n>();
+      auto amt_itr = amt_idx.rbegin();
+
+      asset bid_to_beat = asset(0, CREDIT_CURRENCY_SYMBOL); // initialise to zero bid
+      if (amt_itr != amt_idx.rend()) {
+        bid_to_beat = amt_itr->bidamount;
+      }
+
+      string msg = "number of bids = " + to_string(bids_count) + ", winning bid = " + bid_to_beat.to_string();
+      check(false, msg);
+    }
+
+    if (action == "reset") {
+      // clear bids
+      bids_index bids_table(get_self(), get_self().value);
+      auto bids_iterator = bids_table.begin();
+
+      while (bids_iterator != bids_table.end()) {
+        bids_iterator = bids_table.erase(bids_iterator);
+      }
+
+      // clear auctions
       auctions_index auctions_table(get_self(), get_self().value);
       auto auctions_iterator = auctions_table.begin();
 

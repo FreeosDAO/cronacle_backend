@@ -239,12 +239,20 @@
             "base": "",
             "fields": [
                 {
-                    "name": "winner",
+                    "name": "from",
+                    "type": "name"
+                },
+                {
+                    "name": "to",
                     "type": "name"
                 },
                 {
                     "name": "nft_id",
                     "type": "uint64"
+                },
+                {
+                    "name": "memo",
+                    "type": "string"
                 }
             ]
         }
