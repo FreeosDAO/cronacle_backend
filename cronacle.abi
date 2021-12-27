@@ -233,28 +233,6 @@
             "name": "version",
             "base": "",
             "fields": []
-        },
-        {
-            "name": "xfer",
-            "base": "",
-            "fields": [
-                {
-                    "name": "from",
-                    "type": "name"
-                },
-                {
-                    "name": "to",
-                    "type": "name"
-                },
-                {
-                    "name": "nft_id",
-                    "type": "uint64"
-                },
-                {
-                    "name": "memo",
-                    "type": "string"
-                }
-            ]
         }
     ],
     "actions": [
@@ -301,11 +279,6 @@
         {
             "name": "version",
             "type": "version",
-            "ricardian_contract": ""
-        },
-        {
-            "name": "xfer",
-            "type": "xfer",
             "ricardian_contract": ""
         }
     ],

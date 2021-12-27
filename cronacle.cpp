@@ -6,7 +6,7 @@
 using namespace eosio;
 using namespace std;
 
-const std::string VERSION = "0.4.2";
+const std::string VERSION = "0.4.3";
 
 class [[eosio::contract("cronacle")]] cronacle : public eosio::contract {
 public:
@@ -273,6 +273,7 @@ void add_bid(name user, uint64_t nft_id, asset bidamount) {
   }
 }
 
+/*
 [[eosio::action]]
 void xfer(name from, name to, uint64_t nft_id, string memo) {
 
@@ -282,13 +283,14 @@ void xfer(name from, name to, uint64_t nft_id, string memo) {
   nftids.push_back(nft_id);
   
   action transfer = action(
-      permission_level{get_self(), "active"_n},
+      permission_level{from, "active"_n},
       nft_account,
       "transfer"_n,
-      std::make_tuple(get_self(), to, nftids, memo));
+      std::make_tuple(from, to, nftids, memo));
 
     transfer.send();
 }
+*/
 
 
 // close_auction - helper function to close an existing auction
@@ -544,21 +546,23 @@ void maintain(string action, name user) {
           b.bidtime = current_time_point();
           b.bidder = name("alanappleton");
           b.bidamount = asset(2000000, CREDIT_CURRENCY_SYMBOL);
-          b.nftid = 4398046576806;
+          b.nftid = 4398046576805;
         });
 
+        /*
         bids_table.emplace(get_self(), [&](auto &b) {
           b.bidtime = current_time_point();
           b.bidder = name("billbeaumont");
           b.bidamount = asset(3000000, CREDIT_CURRENCY_SYMBOL);
-          b.nftid = 4398046576806;
+          b.nftid = 4398046576805;
         });
+        */
 
       bids_table.emplace(get_self(), [&](auto &b) {
           b.bidtime = current_time_point();
           b.bidder = name("celiacollins");
           b.bidamount = asset(1000000, CREDIT_CURRENCY_SYMBOL);
-          b.nftid = 4398046576806;
+          b.nftid = 4398046576805;
         });
     }
 
