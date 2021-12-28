@@ -6,7 +6,7 @@
 using namespace eosio;
 using namespace std;
 
-const std::string VERSION = "0.4.3";
+const std::string VERSION = "0.4.5";
 
 class [[eosio::contract("cronacle")]] cronacle : public eosio::contract {
 public:
@@ -613,25 +613,52 @@ void maintain(string action, name user) {
 
 // ACTION: ADDNFT
 [[eosio::action]]
-void addnft(uint64_t nftid) {
+void addnft(name user, uint32_t number, uint64_t nftid) {
 
-  require_auth(get_self());
+  require_auth(user);
 
-  uint32_t last_number = 0;
+  check(user == get_self() || user == name("freeospromo"), "addnft requires a privileged account");
 
-  // get the current highest number - or 0 if the nft table is empty
   nfts_index nfts_table(get_self(), get_self().value);
-  auto latest_itr = nfts_table.rbegin();
 
-  if (latest_itr != nfts_table.rend()) {
-    last_number = latest_itr->number;
+  // check if the nft is not already in the list
+  auto nft_idx = nfts_table.get_index<"bynftid"_n>();
+  auto nft_present_itr = nft_idx.find(nftid);
+  check(nft_present_itr == nft_idx.end(), "nft is already in the table");
+
+  // if 0 passed as the number, then add to the end of the list
+  if (number == 0) {    
+    // get the current highest number and add 1
+    auto latest_itr = nfts_table.rbegin();
+
+    if (latest_itr != nfts_table.rend()) {
+      number = latest_itr->number + 1;
+    } else {
+      number = 1;
+    }
   }
 
   // add the nft to the table
   nfts_table.emplace(get_self(), [&](auto &n) {
-    n.number = last_number + 1;
+    n.number = number;
     n.nftid = nftid;
   });
+}
+
+// ACTION: REMOVENFT
+[[eosio::action]]
+void removenft(name user, uint32_t number) {
+
+  require_auth(user);
+
+  check(user == get_self() || user == name("freeospromo"), "removenft requires a privileged account");
+
+  // find the nft and erase it
+  nfts_index nfts_table(get_self(), get_self().value);
+  auto nft_itr = nfts_table.find(number);
+
+  check(nft_itr != nfts_table.end(), "nft number not found");
+  nfts_table.erase(nft_itr);
 }
 
 };

@@ -8,6 +8,14 @@
             "base": "",
             "fields": [
                 {
+                    "name": "user",
+                    "type": "name"
+                },
+                {
+                    "name": "number",
+                    "type": "uint32"
+                },
+                {
                     "name": "nftid",
                     "type": "uint64"
                 }
@@ -148,6 +156,20 @@
             ]
         },
         {
+            "name": "removenft",
+            "base": "",
+            "fields": [
+                {
+                    "name": "user",
+                    "type": "name"
+                },
+                {
+                    "name": "number",
+                    "type": "uint32"
+                }
+            ]
+        },
+        {
             "name": "storebtc",
             "base": "",
             "fields": [
@@ -264,6 +286,11 @@
         {
             "name": "reguser",
             "type": "reguser",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "removenft",
+            "type": "removenft",
             "ricardian_contract": ""
         },
         {
