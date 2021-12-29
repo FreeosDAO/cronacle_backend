@@ -6,7 +6,7 @@
 using namespace eosio;
 using namespace std;
 
-const std::string VERSION = "0.4.5";
+const std::string VERSION = "0.5.0";
 
 class [[eosio::contract("cronacle")]] cronacle : public eosio::contract {
 public:
@@ -468,9 +468,40 @@ void tick() {
 // ACTION: CLAIM
 [[eosio::action]]
 void claim(name user) {
+
+  // no assert messages, fail silently
+
   require_auth(user);
 
-  // TODO
+  // get the latest auction record
+  auctions_index auctions_table(get_self(), get_self().value);
+  auto latest_auction_itr = auctions_table.rbegin();
+
+  // if no latest auction record then return silently
+  if (latest_auction_itr == auctions_table.rend()) return;
+
+  // check that the auction bidding has finished
+  time_point now = current_time_point();
+
+  // if the bidding is ongoing then return silently
+  if (now < latest_auction_itr->bidding_end) return;
+
+  // get the winning bid
+  bids_index bids_table(get_self(), get_self().value);
+  auto amt_idx = bids_table.get_index<"byamount"_n>();
+  auto amt_itr = amt_idx.rbegin();
+  
+  // if no winning bid then return silently
+  if (amt_itr == amt_idx.rend()) return;
+
+  // check if the user is the winner
+  if (user != amt_itr->bidder) return;
+
+  // get the nft id
+  uint64_t nftid = amt_itr->nftid;
+
+  // close the auction and transfer ownership of the nft to the user
+  close_auction(nftid);
  
 }
 
