@@ -6,7 +6,7 @@
 using namespace eosio;
 using namespace std;
 
-const std::string VERSION = "0.5.0";
+const std::string VERSION = "0.5.1";
 
 class [[eosio::contract("cronacle")]] cronacle : public eosio::contract {
 public:
@@ -240,9 +240,9 @@ void add_bid(name user, uint64_t nft_id, asset bidamount) {
 
   end of debugging code */
   
-
-  const string bid_error = "you must start bidding, or increase the highest bid by at least " + BID_INCREMENT.to_string();
-  check((bidamount > bid_to_beat) && ((bidamount - bid_to_beat) >= BID_INCREMENT), bid_error);
+  asset minimum_next_bid = bid_to_beat + BID_INCREMENT;
+  const string bid_amount_msg = "the highest bid is currently " + bid_to_beat.to_string() + ". you must bid at least " + minimum_next_bid.to_string();
+  check(bidamount >= minimum_next_bid, bid_amount_msg);
 
   // check if we are replacing a previous bid by the same user
   auto userbid_itr = bids_table.find(user.value);
