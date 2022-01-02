@@ -6,7 +6,7 @@
 using namespace eosio;
 using namespace std;
 
-const std::string VERSION = "0.5.1";
+const std::string VERSION = "0.6.1";
 
 class [[eosio::contract("cronacle")]] cronacle : public eosio::contract {
 public:
@@ -122,6 +122,52 @@ void reguser(name user) {
     }    
   }
 
+
+[[eosio::action]]
+void withdraw(name user) {
+
+  require_auth(user);
+
+  // calculate unavailable credit i.e. if the user has a currently winning bid in place
+  asset bid_amount = asset(0, CREDIT_CURRENCY_SYMBOL);
+  bids_index bids_table(get_self(), get_self().value);
+
+  // find the winning bid
+  auto bid_amt_idx = bids_table.get_index<"byamount"_n>();
+  auto winning_bid_itr = bid_amt_idx.rbegin();
+
+  if (winning_bid_itr != bid_amt_idx.rend()) {
+    if (user == winning_bid_itr->bidder) {
+      bid_amount = winning_bid_itr->bidamount;
+    }
+  }
+
+  // get the user's credit balance
+  credits_index credits_table(get_self(), user.value);
+  auto credit_iterator = credits_table.begin();
+  check(credit_iterator != credits_table.end(), "you do not have a credit balance");
+  asset credit_amount = credit_iterator->amount;
+
+
+
+  // user cannot withdraw the amount for the winning bid, so subtract from credit amount
+  check(credit_amount > bid_amount, "you do not have sufficient credit to withdraw");
+  asset withdrawal_amount = credit_amount - bid_amount;
+
+  action transfer = action(
+      permission_level{get_self(), "active"_n},
+      name("xtokens"),
+      "transfer"_n,
+      std::make_tuple(get_self(), user, withdrawal_amount, std::string("withdraw auction credit")));
+
+    transfer.send();
+
+  // adjust the user's credit balance
+  credits_table.modify(credit_iterator, get_self(), [&](auto &c) {
+      c.amount -= withdrawal_amount;
+  });
+
+}
 
 // FUNCTION: CREDIT
 #ifdef PRODUCTION
@@ -273,25 +319,6 @@ void add_bid(name user, uint64_t nft_id, asset bidamount) {
   }
 }
 
-/*
-[[eosio::action]]
-void xfer(name from, name to, uint64_t nft_id, string memo) {
-
-  require_auth(from);
-
-  vector <uint64_t> nftids;
-  nftids.push_back(nft_id);
-  
-  action transfer = action(
-      permission_level{from, "active"_n},
-      nft_account,
-      "transfer"_n,
-      std::make_tuple(from, to, nftids, memo));
-
-    transfer.send();
-}
-*/
-
 
 // close_auction - helper function to close an existing auction
 void close_auction(uint64_t nft_id) {
@@ -419,9 +446,11 @@ void bid(name user, uint64_t nft_id, asset bidamount) {
 
   if (auction_iterator != nft_idx.end()) {
     // Yes, there is an auction record for the bid nft
-    // check if bidding is still open; if yes then add the bid, otherwise refuse the bid
-    check(now >= auction_iterator->start && now <= auction_iterator->bidding_end, "bidding has ended for this nft");
-    add_bid(user, nft_id, bidamount);
+    // check if bidding is still open; if yes then add the bid
+    // check(now >= auction_iterator->start && now <= auction_iterator->bidding_end, "bidding has ended for this nft");
+    if (now >= auction_iterator->start && now <= auction_iterator->bidding_end) {
+      add_bid(user, nft_id, bidamount);
+    }
 
   } else {
     // No, there is no auction record for the nft

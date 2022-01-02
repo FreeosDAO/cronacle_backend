@@ -255,6 +255,16 @@
             "name": "version",
             "base": "",
             "fields": []
+        },
+        {
+            "name": "withdraw",
+            "base": "",
+            "fields": [
+                {
+                    "name": "user",
+                    "type": "name"
+                }
+            ]
         }
     ],
     "actions": [
@@ -306,6 +316,11 @@
         {
             "name": "version",
             "type": "version",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "withdraw",
+            "type": "withdraw",
             "ricardian_contract": ""
         }
     ],
