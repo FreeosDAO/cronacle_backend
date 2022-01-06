@@ -6,7 +6,7 @@
 using namespace eosio;
 using namespace std;
 
-const std::string VERSION = "0.7.0";
+const std::string VERSION = "0.8.1";
 
 class [[eosio::contract("cronacle")]] cronacle : public eosio::contract {
 public:
@@ -128,31 +128,11 @@ void withdraw(name user) {
 
   require_auth(user);
 
-  // calculate unavailable credit i.e. if the user has a currently winning bid in place
-  asset bid_amount = asset(0, CREDIT_CURRENCY_SYMBOL);
-  bids_index bids_table(get_self(), get_self().value);
+  asset zero_amount = asset(0, CREDIT_CURRENCY_SYMBOL);
 
-  // find the winning bid
-  auto bid_amt_idx = bids_table.get_index<"byamount"_n>();
-  auto winning_bid_itr = bid_amt_idx.rbegin();
+  asset withdrawal_amount = get_available_credit(user);
 
-  if (winning_bid_itr != bid_amt_idx.rend()) {
-    if (user == winning_bid_itr->bidder) {
-      bid_amount = winning_bid_itr->bidamount;
-    }
-  }
-
-  // get the user's credit balance
-  credits_index credits_table(get_self(), user.value);
-  auto credit_iterator = credits_table.begin();
-  check(credit_iterator != credits_table.end(), "you do not have a credit balance");
-  asset credit_amount = credit_iterator->amount;
-
-
-
-  // user cannot withdraw the amount for the winning bid, so subtract from credit amount
-  check(credit_amount > bid_amount, "you do not have sufficient credit to withdraw");
-  asset withdrawal_amount = credit_amount - bid_amount;
+  check(withdrawal_amount > zero_amount, "you do not have credit to withdraw");
 
   action transfer = action(
       permission_level{get_self(), "active"_n},
@@ -163,7 +143,10 @@ void withdraw(name user) {
     transfer.send();
 
   // adjust the user's credit balance
-  credits_table.modify(credit_iterator, get_self(), [&](auto &c) {
+  credits_index credits_table(get_self(), user.value);
+  auto user_credit_iterator = credits_table.begin();
+  check(user_credit_iterator != credits_table.end(), "internal error, user's credit balance is undefined");
+  credits_table.modify(user_credit_iterator, get_self(), [&](auto &c) {
       c.amount -= withdrawal_amount;
   });
 
@@ -205,6 +188,16 @@ void credit(name user, name to, asset quantity, std::string memo) {
 
 // create_auction - create a new auction record based on system initialisation time, the current time and auction length
 void create_auction(uint64_t nft_id) {
+
+  // get the auction length and bidding period length
+  parameters_index parameters_table(get_self(), get_self().value);
+  auto parameter_iterator = parameters_table.find(name("auctperiod").value);
+  check(parameter_iterator != parameters_table.end(), "auction period is undefined");
+  const uint32_t AUCTION_LENGTH_SECONDS = stoi(parameter_iterator->value);
+
+  parameter_iterator = parameters_table.find(name("bidperiod").value);
+  check(parameter_iterator != parameters_table.end(), "bidding period is undefined");
+  const uint32_t AUCTION_BIDDING_PERIOD_SECONDS = stoi(parameter_iterator->value);
 
   // work out the start time from the system init time
   system_index system_table(get_self(), get_self().value);
@@ -320,6 +313,34 @@ void add_bid(name user, uint64_t nft_id, asset bidamount) {
 }
 
 
+asset get_available_credit(name user) {
+  // default values
+  asset zero_credit = asset(0, CREDIT_CURRENCY_SYMBOL);
+  asset user_total_credit = zero_credit;
+  asset winning_bid_amount = zero_credit;
+
+  // get the user's credit
+  credits_index credit_table(get_self(), user.value);
+  auto credit_iterator = credit_table.begin();
+  if (credit_iterator == credit_table.end()) {  // no credit record
+    user_total_credit = zero_credit;
+  } else {
+    user_total_credit = credit_iterator->amount;
+  }
+
+  // get the winning bid amount
+  bids_index bids_table(get_self(), get_self().value);
+  auto amt_idx = bids_table.get_index<"byamount"_n>();
+  auto bid_itr = amt_idx.rbegin();
+  if (bid_itr != amt_idx.rend()) {
+    if (bid_itr->bidder == user) {
+      winning_bid_amount = bid_itr->bidamount;
+    }
+  }
+
+  return user_total_credit - winning_bid_amount;  
+}
+
 // close_auction - helper function to close an existing auction
 void close_auction(uint64_t nft_id) {
 
@@ -396,8 +417,7 @@ void close_auction(uint64_t nft_id) {
 // BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID
 // BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID
 
-// ACTION: BID
-[[eosio::action]]
+// oldbid has the original bid logic
 void oldbid(name user, uint64_t nft_id, asset bidamount) {
   require_auth(user);
 
@@ -413,7 +433,7 @@ void oldbid(name user, uint64_t nft_id, asset bidamount) {
   time_point init = system_iterator->init;
   check(current_time_point() >= init, "the auction system is not open for business");
 
-  // check that the user has enough credit to support the bid
+  // check the user has enough credit to support the bid
   credits_index credits_table(get_self(), user.value);
   auto credit_iterator = credits_table.begin();
   check(credit_iterator != credits_table.end(), "you do not have a credit balance");
@@ -502,11 +522,9 @@ void bid(name user, uint64_t nft_id, asset bidamount) {
   time_point init = system_iterator->init;
   check(current_time_point() >= init, "the auction system is not open for business");
 
-  // check that the user has enough credit to support the bid
-  credits_index credits_table(get_self(), user.value);
-  auto credit_iterator = credits_table.begin();
-  check(credit_iterator != credits_table.end(), "you do not have a credit balance");
-  check(credit_iterator->amount >= bidamount, "you do not have sufficient credit to place your bid");
+  // check the user has enough available credit to support the bid
+  asset user_available_credit = get_available_credit(user);
+  check(user_available_credit >= bidamount, "you do not have sufficient credit to place your bid");
 
   // The user should be bidding on either:
   // 1. The first nft in the nfts table while the current auction is active
@@ -804,6 +822,46 @@ void removenft(name user, uint32_t number) {
 
   check(nft_itr != nfts_table.end(), "nft number not found");
   nfts_table.erase(nft_itr);
+}
+
+// upsert a parameter in the parameters table
+[[eosio::action]]
+void paramupsert(name paramname, std::string value) {
+
+  require_auth(_self);
+  parameters_index parameters_table(get_self(), get_self().value);
+  auto parameter_iterator = parameters_table.find(paramname.value);
+
+  // check if the parameter is in the table or not
+  if (parameter_iterator == parameters_table.end()) {
+    // the parameter is not in the table, so insert
+    parameters_table.emplace(_self, [&](auto &parameter) {
+      parameter.paramname = paramname;
+      parameter.value = value;
+    });
+
+  } else {
+    // the parameter is in the table, so update
+    parameters_table.modify(parameter_iterator, _self, [&](auto &parameter) {
+      parameter.value = value;
+    });
+  }
+}
+
+// erase parameter from the parameters table
+[[eosio::action]]
+void paramerase(name paramname) {
+  require_auth(_self);
+
+  parameters_index parameters_table(get_self(), get_self().value);
+  auto parameter_iterator = parameters_table.find(paramname.value);
+
+  // check if the parameter is in the table or not
+  check(parameter_iterator != parameters_table.end(),
+        "config parameter does not exist");
+
+  // the parameter is in the table, so delete
+  parameters_table.erase(parameter_iterator);
 }
 
 };

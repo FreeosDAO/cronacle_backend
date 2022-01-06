@@ -146,20 +146,40 @@
             ]
         },
         {
-            "name": "oldbid",
+            "name": "paramerase",
             "base": "",
             "fields": [
                 {
-                    "name": "user",
+                    "name": "paramname",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "parameter",
+            "base": "",
+            "fields": [
+                {
+                    "name": "paramname",
                     "type": "name"
                 },
                 {
-                    "name": "nft_id",
-                    "type": "uint64"
+                    "name": "value",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "paramupsert",
+            "base": "",
+            "fields": [
+                {
+                    "name": "paramname",
+                    "type": "name"
                 },
                 {
-                    "name": "bidamount",
-                    "type": "asset"
+                    "name": "value",
+                    "type": "string"
                 }
             ]
         },
@@ -312,8 +332,13 @@
             "ricardian_contract": ""
         },
         {
-            "name": "oldbid",
-            "type": "oldbid",
+            "name": "paramerase",
+            "type": "paramerase",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "paramupsert",
+            "type": "paramupsert",
             "ricardian_contract": ""
         },
         {
@@ -379,6 +404,13 @@
         {
             "name": "nfts",
             "type": "nft",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "parameters",
+            "type": "parameter",
             "index_type": "i64",
             "key_names": [],
             "key_types": []

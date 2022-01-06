@@ -29,10 +29,6 @@ const name nft_account = name("atomicassets");
 // User contribution to Conditionally Limited Supply
 const asset UCLS = asset(1000000, POINT_CURRENCY_SYMBOL);
 
-// timing system
-const uint32_t AUCTION_LENGTH_SECONDS = 600;            // 10 minutes
-const uint32_t AUCTION_BIDDING_PERIOD_SECONDS = 540;    // 9 minutes
-
 #ifdef PRODUCTION
   asset BID_INCREMENT = asset(1000000, CREDIT_CURRENCY_SYMBOL);
 #else
@@ -123,3 +119,13 @@ struct[[ eosio::table("nfts"), eosio::contract("cronacle") ]] nft {
 };
 using nfts_index = eosio::multi_index<"nfts"_n, nft,
 indexed_by<"bynftid"_n, const_mem_fun<nft, uint64_t, &nft::get_secondary>>>;
+
+// PARAMETERS
+// parameters table
+struct[[ eosio::table("parameters"), eosio::contract("cronacle") ]] parameter {
+name paramname;
+string value;
+
+uint64_t primary_key() const { return paramname.value; }
+};
+using parameters_index = eosio::multi_index<"parameters"_n, parameter>;
