@@ -9,19 +9,11 @@ const string POINT_CURRENCY_CODE = "POINT";
 const uint8_t POINT_CURRENCY_PRECISION = 4;
 const symbol POINT_CURRENCY_SYMBOL = symbol(POINT_CURRENCY_CODE, POINT_CURRENCY_PRECISION);
 
-#ifdef PRODUCTION
-const std::string CREDIT_CURRENCY_CODE = "FOOBAR";
-const std::string ERR_CREDIT_CURRENCY_MESSAGE = "you must credit your account with FOOBAR";
-const uint8_t CREDIT_CURRENCY_PRECISION = 6;
-const symbol CREDIT_CURRENCY_SYMBOL = symbol(CREDIT_CURRENCY_CODE, CREDIT_CURRENCY_PRECISION);
-const std::string CREDIT_CURRENCY_CONTRACT = "xtokens";
-#else
-const std::string CREDIT_CURRENCY_CODE = "XPR";
-const std::string ERR_CREDIT_CURRENCY_MESSAGE = "you must credit your account with XPR";
+const std::string CREDIT_CURRENCY_CODE = "FREEOS";
+const std::string ERR_CREDIT_CURRENCY_MESSAGE = "you must credit your account with FREEOS";
 const uint8_t CREDIT_CURRENCY_PRECISION = 4;
 const symbol CREDIT_CURRENCY_SYMBOL = symbol(CREDIT_CURRENCY_CODE, CREDIT_CURRENCY_PRECISION);
-const std::string CREDIT_CURRENCY_CONTRACT = "eosio.token";
-#endif
+const std::string CREDIT_CURRENCY_CONTRACT = "freeostokens";
 
 // atomicassets constants
 const name nft_account = name("atomicassets");
@@ -47,6 +39,17 @@ uint64_t primary_key() const { return 0; } // return a constant to ensure a sing
 };
 using system_index = eosio::multi_index<"system"_n, system_record>;
 
+// PRICES
+struct[[ eosio::table("prices"), eosio::contract("cronacle") ]] price {
+    
+    name        currency;
+    double      usdprice;
+    time_point  ticktime;
+    name        updatedby;
+
+    uint64_t primary_key() const { return currency.value; }
+};
+using prices_index = eosio::multi_index<"prices"_n, price>;
 
 // BTC
 struct[[ eosio::table("btcprice"), eosio::contract("cronacle") ]] btctick {

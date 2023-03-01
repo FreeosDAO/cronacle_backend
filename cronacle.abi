@@ -188,6 +188,28 @@
             ]
         },
         {
+            "name": "price",
+            "base": "",
+            "fields": [
+                {
+                    "name": "currency",
+                    "type": "name"
+                },
+                {
+                    "name": "usdprice",
+                    "type": "float64"
+                },
+                {
+                    "name": "ticktime",
+                    "type": "time_point"
+                },
+                {
+                    "name": "updatedby",
+                    "type": "name"
+                }
+            ]
+        },
+        {
             "name": "removenft",
             "base": "",
             "fields": [
@@ -197,6 +219,16 @@
                 },
                 {
                     "name": "number",
+                    "type": "uint32"
+                }
+            ]
+        },
+        {
+            "name": "storebtc",
+            "base": "",
+            "fields": [
+                {
+                    "name": "btcprice",
                     "type": "uint32"
                 }
             ]
@@ -212,6 +244,24 @@
                 {
                     "name": "principal",
                     "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "storeprices",
+            "base": "",
+            "fields": [
+                {
+                    "name": "user",
+                    "type": "name"
+                },
+                {
+                    "name": "btcprice",
+                    "type": "float64"
+                },
+                {
+                    "name": "freeosprice",
+                    "type": "float64"
                 }
             ]
         },
@@ -331,8 +381,18 @@
             "ricardian_contract": ""
         },
         {
+            "name": "storebtc",
+            "type": "storebtc",
+            "ricardian_contract": ""
+        },
+        {
             "name": "storeid",
             "type": "storeid",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "storeprices",
+            "type": "storeprices",
             "ricardian_contract": ""
         },
         {
@@ -385,6 +445,13 @@
         {
             "name": "parameters",
             "type": "parameter",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "prices",
+            "type": "price",
             "index_type": "i64",
             "key_names": [],
             "key_types": []

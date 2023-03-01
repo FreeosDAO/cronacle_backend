@@ -6,7 +6,7 @@
 using namespace eosio;
 using namespace std;
 
-const std::string VERSION = "0.10.3";
+const std::string VERSION = "0.11.6";
 
 class [[eosio::contract("cronacle")]] cronacle : public eosio::contract {
 public:
@@ -14,7 +14,9 @@ public:
   cronacle(name receiver, name code,  datastream<const char*> ds): contract(receiver, code, ds) {}
 
 
-  // ACTION: VERSION
+  /**
+   * version action prints the version of the contract
+   */
   [[eosio::action]]
   void version() {
 
@@ -23,8 +25,78 @@ public:
     check(false, version_message);
   }
 
+  /**
+   * storeprices action takes a user name, the current BTC price, the FREEOS price, and then stores the prices in the prices
+   * table
+   * 
+   * @param user The account that is calling the action.
+   * @param btcprice The price of 1 BTC in USD
+   * @param freeosprice The price of 1 FREEOS in USD
+   */
+  [[eosio::action]]
+  void storeprices(name user, double btcprice, double freeosprice) {
+    require_auth(user);
 
-  // ACTION: INIT
+    name btc_symbol = name("btc");
+    name freeos_symbol = name("freeos");
+
+    prices_index prices_table(get_self(), get_self().value);
+
+    // BTC
+    if (btcprice > 0.0) {
+      
+      auto btc_price_iterator = prices_table.find(btc_symbol.value);
+
+      if (btc_price_iterator == prices_table.end()) {
+        // emplace
+        prices_table.emplace(get_self(), [&](auto &p) {
+          p.currency = btc_symbol;
+          p.usdprice = btcprice;
+          p.ticktime = current_time_point();
+          p.updatedby = user;
+        });
+      } else {
+        // modify if the price has changed
+        prices_table.modify(btc_price_iterator, get_self(), [&](auto &p) { 
+          p.usdprice = btcprice;
+          p.ticktime = current_time_point();
+          p.updatedby = user;
+        });        
+      }
+    }
+
+    // FREEOS
+    if (freeosprice > 0.0) {
+      
+      auto freeos_price_iterator = prices_table.find(freeos_symbol.value);
+
+      if (freeos_price_iterator == prices_table.end()) {
+        // emplace
+        prices_table.emplace(get_self(), [&](auto &p) {
+          p.currency = freeos_symbol;
+          p.usdprice = freeosprice;
+          p.ticktime = current_time_point();
+          p.updatedby = user;
+        });
+      } else {
+        // modify if the price has changed
+        prices_table.modify(freeos_price_iterator, get_self(), [&](auto &p) { 
+          p.usdprice = freeosprice;
+          p.ticktime = current_time_point();
+          p.updatedby = user;
+        });        
+      }
+    }
+    
+  }
+
+  /**
+   * init action is called by the contract owner to set the start time of the auctions
+   * 
+   * @pre requires authority of the contract
+   * 
+   * @param auctions_start The time when the first auction starts.
+   */
   [[eosio::action]]
   void init(time_point auctions_start) {
 
@@ -48,7 +120,13 @@ public:
 }
 
 
-// register occurs when a user sends credit
+
+/**
+ * reguser function is called by the credit function after notification of a transfer of FREEOS to the contract.
+ * On receipt of credit, adds a new user to the users table and updates the system table with the new user count and CLS
+ * 
+ * @param user the account name of the user making the transfer of tokens
+ */
 void reguser(name user) {
 
   // is the user already registered?
@@ -85,8 +163,27 @@ void reguser(name user) {
   }
 }
 
+  
+  /**
+   * storeprices function takes two double values as arguments, and it doesn't return anything
+   * 
+   * @todo Needs implementation as an action
+   * 
+   * @param btc_price The current price of Bitcoin in USD
+   * @param freeos_price The price of the freeos token in USD
+   */
+  void storeprices(double btc_price, double freeos_price) {
 
-  // storebtc function - called by bid action
+
+  }
+
+  
+  /**
+   * storebtc action stores the current time and the current BTC price in the btcprice table
+   * 
+   * @param btcprice the price of bitcoin in USD
+   */
+  [[eosio::action]]
   void storebtc(uint32_t btcprice) {
 
     // an invalid or unobtainable btc price is indicated by 0 passed by the frontend - do not store
@@ -104,7 +201,12 @@ void reguser(name user) {
   using version_action = action_wrapper<"version"_n, &cronacle::version>;
 
 
-  // ACTION: STOREID
+  /**
+   * storeid action take a user's Proton account name and an internet computer principal id and stores it in the user table
+   * 
+   * @param user The account name of the user
+   * @param principal The principal that is being stored.
+   */
   [[eosio::action]]
   void storeid(name user, std::string principal) {
     time_point now = current_time_point();
@@ -124,6 +226,11 @@ void reguser(name user) {
   }
 
 
+/**
+ * withdraw action returns the user's available credit balance
+ * 
+ * @param user the user who is withdrawing credit
+ */
 [[eosio::action]]
 void withdraw(name user) {
 
@@ -137,7 +244,7 @@ void withdraw(name user) {
 
   action transfer = action(
       permission_level{get_self(), "active"_n},
-      name("xtokens"),
+      name(CREDIT_CURRENCY_CONTRACT),
       "transfer"_n,
       std::make_tuple(get_self(), user, withdrawal_amount, std::string("withdraw auction credit")));
 
@@ -153,12 +260,40 @@ void withdraw(name user) {
 
 }
 
-// FUNCTION: CREDIT
-#ifdef PRODUCTION
+
+/**
+ * If the user sends a token other than FREEOS to the contract, the contract will reject the
+ * transaction
+ * 
+ * @param user the account that sent the token
+ * @param to The account that is receiving the tokens
+ * @param quantity The amount of the asset being transferred.
+ * @param memo The memo field is a string that is sent along with the transfer. It is not used by the
+ * contract, but it is available for the user to send information to the contract.
+ */
 [[eosio::on_notify("xtokens::transfer")]]
-#else
-[[eosio::on_notify("eosio.token::transfer")]]
-#endif
+void refusefoobar(name user, name to, asset quantity, std::string memo) {
+  if (to == get_self()) {
+    check(false, "The auction accepts FREEOS as credit");
+  }
+  
+}
+
+
+/**
+ * credit is a notification function that adds the amount of credit received to the user's credit balance
+ * It checks that the token is FREEOS and throws an assert error if not.
+ * On success it updates the user's credit in the credits table.
+ * 
+ * @param user the account that sent the tokens
+ * @param to The account that is receiving the credit
+ * @param quantity The amount of credit being transferred.
+ * @param memo The memo is a string that is passed along with the transfer. It is not used in this
+ * contract, but it is a good idea to include it in your contract.
+ * 
+ * @return Nothing is being returned.
+ */
+[[eosio::on_notify("freeostokens::transfer")]]
 void credit(name user, name to, asset quantity, std::string memo) {
   if (user == get_self()) {
       return;
@@ -191,8 +326,14 @@ void credit(name user, name to, asset quantity, std::string memo) {
 
 }
 
-// create_auction - create a new auction record based on system initialisation time, the current time and auction length
-// NB: will throw an assert error
+
+/**
+ * create_auction function creates a new auction record for the NFT with the specified ID
+ * The auction record contains the auction start, end and end-of-bidding times.
+ * This function is called by the bid action, i.e. the system responds to user activity
+ * 
+ * @param nft_id The ID of the NFT to be auctioned.
+ */
 void create_auction(uint64_t nft_id) {
 
   // get the auction length and bidding period length
@@ -248,7 +389,15 @@ void create_auction(uint64_t nft_id) {
 }
 
 
-// add_bid - helper function to add a bid to the bids table
+
+/**
+ * add_bid function is called by the bid action. It adds a bid to the bids table, but only if the bid is higher
+ * than the current highest bid
+ * 
+ * @param user the user who is placing the bid
+ * @param nft_id the id of the NFT that is being bid on
+ * @param bidamount the amount of the bid
+ */
 void add_bid(name user, uint64_t nft_id, asset bidamount) {
 
   bids_index bids_table(get_self(), get_self().value);
@@ -289,14 +438,26 @@ void add_bid(name user, uint64_t nft_id, asset bidamount) {
 
   end of debugging code */
 
-  // get the minimum bid increment
+  // get the minimum bid increment parameter
   name minimumbid = name("minimumbid");
   parameters_index parameters_table(get_self(), get_self().value);
   auto minbid_itr = parameters_table.find(minimumbid.value);
-  check(minbid_itr != parameters_table.end(), "minimum bid parameter is not defined");
-  asset MINIMUM_BID_INCREMENT = asset(stoi(minbid_itr->value) * 1000000, CREDIT_CURRENCY_SYMBOL);
+  check(minbid_itr != parameters_table.end(), "minimumbid parameter is not defined");
+  asset MINIMUM_BID_INCREMENT = asset(stoi(minbid_itr->value) * 10000, CREDIT_CURRENCY_SYMBOL);
+
+  // get the bidstep parameter
+  name bidstep = name("bidstep");
+  auto bidstep_itr = parameters_table.find(bidstep.value);
+  check(bidstep_itr != parameters_table.end(), "bidstep parameter is not defined");
+  asset BIDSTEP_INCREMENT = asset(stoi(bidstep_itr->value) * 10000, CREDIT_CURRENCY_SYMBOL);
+
+  asset minimum_next_bid;
+  if (bid_to_beat.amount == 0) {
+    minimum_next_bid = MINIMUM_BID_INCREMENT;
+  } else {
+    minimum_next_bid = bid_to_beat + BIDSTEP_INCREMENT;
+  }
   
-  asset minimum_next_bid = bid_to_beat + MINIMUM_BID_INCREMENT;
   const string bid_amount_msg = "the highest bid is currently " + bid_to_beat.to_string() + ". you must bid at least " + minimum_next_bid.to_string();
   check(bidamount >= minimum_next_bid, bid_amount_msg);
 
@@ -330,6 +491,14 @@ void add_bid(name user, uint64_t nft_id, asset bidamount) {
 }
 
 
+/**
+ * get_available_credit function returns the user's total credit minus the amount of the user's winning bid.
+ * Called by the bid and withdraw actions.
+ * 
+ * @param user the user's account name
+ * 
+ * @return The user's available credit, i.e. number of tokens deposited.
+ */
 asset get_available_credit(name user) {
   // default values
   asset zero_credit = asset(0, CREDIT_CURRENCY_SYMBOL);
@@ -358,7 +527,17 @@ asset get_available_credit(name user) {
   return user_total_credit - winning_bid_amount;  
 }
 
-// close_auction - helper function to close an existing auction
+
+/**
+ * 
+ * close_auction function is called to clean up after an auction has ended.
+ * 
+ * It finds the winning bid, transfers the NFT to the winner, reduces the winner's credit by the bid
+ * amount, records the winner and winning bid in the latest auction record, clears the bids table, and
+ * deletes the NFT record
+ * 
+ * @param nft_id the id of the nft being auctioned
+ */
 void close_auction(uint64_t nft_id) {
 
   // find the winning bid
@@ -418,24 +597,19 @@ void close_auction(uint64_t nft_id) {
 
 }
 
-// BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID
-// BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID
-// BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID
-// BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID
-// BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID
-// BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID
-// BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID
-// BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID
-// BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID
-// BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID
-// BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID
-// BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID
-// BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID
-// BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID
-// BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID BID
 
-
-// ACTION: BID
+/**
+ * bid action records the details of a user bid.
+ * The system takes the opportunity to also store the BTC and FREEOS prices.
+ * 
+ * If the user is registered, the system is open for business, the user has enough credit, and the
+ * auction is open for bidding, then add the user's bid to the bids table
+ * 
+ * @param user the user who is bidding
+ * @param nft_id the id of the nft being bid on
+ * @param bidamount the amount of credit the user is bidding
+ * @param btcprice the current price of bitcoin in USD
+ */
 [[eosio::action]]
 void bid(name user, uint64_t nft_id, asset bidamount, uint32_t btcprice) {
   require_auth(user);
@@ -524,7 +698,11 @@ void bid(name user, uint64_t nft_id, asset bidamount, uint32_t btcprice) {
   }
 }
 
-// ACTION
+
+/**
+ * Reserved for future implementation.
+ * The tick function will conduct scheduled (e.g. hourly, daily...) activities in response to user activity
+ */
 void tick() {
 
   // TODO
@@ -532,7 +710,12 @@ void tick() {
 }
 
 
-// ACTION: CLAIM
+/**
+ * claim action is called by the user who is the winner of the latest auction, then closes the auction and
+ * transfers ownership of the nft to the user
+ * 
+ * @param user the name of the user who is claiming the NFT
+ */
 [[eosio::action]]
 void claim(name user) {
 
@@ -572,7 +755,16 @@ void claim(name user) {
  
 }
 
-// ACTION: MAINTAIN
+
+
+/**
+ * maintain action enables the contract owner to perform various maintenance tasks on the contract.
+ * 
+ * @pre requires authority of the contract
+ * 
+ * @param action the action to perform
+ * @param user the user's account name
+ */
 [[eosio::action]]
 void maintain(string action, name user) {
 
@@ -624,6 +816,15 @@ void maintain(string action, name user) {
 
       while (user_iterator != users_table.end()) {
         user_iterator = users_table.erase(user_iterator);
+      }
+    }
+
+    if (action == "clear prices") {
+      prices_index prices_table(get_self(), get_self().value);
+      auto price_iterator = prices_table.begin();
+
+      while (price_iterator != prices_table.end()) {
+        price_iterator = prices_table.erase(price_iterator);
       }
     }
 
@@ -757,10 +958,27 @@ void maintain(string action, name user) {
       }
     }
 
+    if (action == "clear credit") {
+      credits_index credits_table(get_self(), user.value);
+      auto credit_iterator = credits_table.begin();
+
+      if (credit_iterator != credits_table.end()) {
+        credits_table.erase(credit_iterator);
+      }
+    }
+
 }
 
 
-// ACTION: ADDNFT
+/**
+ * addnft adds an NFT to the nfts table
+ * 
+ * @pre requires authority of the contract
+ * 
+ * @param user the account that is calling the action
+ * @param number the number of the nft in the auction list
+ * @param nftid the id of the nft to add
+ */
 [[eosio::action]]
 void addnft(name user, uint32_t number, uint64_t nftid) {
 
@@ -794,7 +1012,15 @@ void addnft(name user, uint32_t number, uint64_t nftid) {
   });
 }
 
-// ACTION: REMOVENFT
+
+/**
+ * removenft removes an NFT from the nfts table
+ * 
+ * @pre requires authority of the contract
+ * 
+ * @param user the account that is calling the action
+ * @param number the unique number of the NFT
+ */
 [[eosio::action]]
 void removenft(name user, uint32_t number) {
 
@@ -810,7 +1036,15 @@ void removenft(name user, uint32_t number) {
   nfts_table.erase(nft_itr);
 }
 
-// upsert a parameter in the parameters table
+
+/**
+ * paramupsert action takes a parameter name and a value, and either inserts or updates the parameter in the parameters table
+ * 
+ * @pre requires authority of the contract
+ * 
+ * @param paramname The name of the parameter.
+ * @param value The value of the parameter.
+ */
 [[eosio::action]]
 void paramupsert(name paramname, std::string value) {
 
@@ -834,7 +1068,14 @@ void paramupsert(name paramname, std::string value) {
   }
 }
 
-// erase parameter from the parameters table
+
+/**
+ * paramerase action deletes a parameter from the parameters table
+ * 
+ * @pre requires authority of the contract
+ * 
+ * @param paramname The name of the parameter to be removed.
+ */
 [[eosio::action]]
 void paramerase(name paramname) {
   require_auth(_self);
