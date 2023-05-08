@@ -78,20 +78,6 @@
             ]
         },
         {
-            "name": "btctick",
-            "base": "",
-            "fields": [
-                {
-                    "name": "ticktime",
-                    "type": "time_point"
-                },
-                {
-                    "name": "usdprice",
-                    "type": "uint32"
-                }
-            ]
-        },
-        {
             "name": "claim",
             "base": "",
             "fields": [
@@ -188,28 +174,6 @@
             ]
         },
         {
-            "name": "price",
-            "base": "",
-            "fields": [
-                {
-                    "name": "currency",
-                    "type": "name"
-                },
-                {
-                    "name": "usdprice",
-                    "type": "float64"
-                },
-                {
-                    "name": "ticktime",
-                    "type": "time_point"
-                },
-                {
-                    "name": "updatedby",
-                    "type": "name"
-                }
-            ]
-        },
-        {
             "name": "removenft",
             "base": "",
             "fields": [
@@ -220,48 +184,6 @@
                 {
                     "name": "number",
                     "type": "uint32"
-                }
-            ]
-        },
-        {
-            "name": "storebtc",
-            "base": "",
-            "fields": [
-                {
-                    "name": "btcprice",
-                    "type": "uint32"
-                }
-            ]
-        },
-        {
-            "name": "storeid",
-            "base": "",
-            "fields": [
-                {
-                    "name": "user",
-                    "type": "name"
-                },
-                {
-                    "name": "principal",
-                    "type": "string"
-                }
-            ]
-        },
-        {
-            "name": "storeprices",
-            "base": "",
-            "fields": [
-                {
-                    "name": "user",
-                    "type": "name"
-                },
-                {
-                    "name": "btcprice",
-                    "type": "float64"
-                },
-                {
-                    "name": "freeosprice",
-                    "type": "float64"
                 }
             ]
         },
@@ -381,21 +303,6 @@
             "ricardian_contract": ""
         },
         {
-            "name": "storebtc",
-            "type": "storebtc",
-            "ricardian_contract": ""
-        },
-        {
-            "name": "storeid",
-            "type": "storeid",
-            "ricardian_contract": ""
-        },
-        {
-            "name": "storeprices",
-            "type": "storeprices",
-            "ricardian_contract": ""
-        },
-        {
             "name": "version",
             "type": "version",
             "ricardian_contract": ""
@@ -422,13 +329,6 @@
             "key_types": []
         },
         {
-            "name": "btcprice",
-            "type": "btctick",
-            "index_type": "i64",
-            "key_names": [],
-            "key_types": []
-        },
-        {
             "name": "credits",
             "type": "credit",
             "index_type": "i64",
@@ -445,13 +345,6 @@
         {
             "name": "parameters",
             "type": "parameter",
-            "index_type": "i64",
-            "key_names": [],
-            "key_types": []
-        },
-        {
-            "name": "prices",
-            "type": "price",
             "index_type": "i64",
             "key_names": [],
             "key_types": []

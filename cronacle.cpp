@@ -6,7 +6,7 @@
 using namespace eosio;
 using namespace std;
 
-const std::string VERSION = "0.11.6";
+const std::string VERSION = "0.12.0";
 
 class [[eosio::contract("cronacle")]] cronacle : public eosio::contract {
 public:
@@ -25,71 +25,7 @@ public:
     check(false, version_message);
   }
 
-  /**
-   * storeprices action takes a user name, the current BTC price, the FREEOS price, and then stores the prices in the prices
-   * table
-   * 
-   * @param user The account that is calling the action.
-   * @param btcprice The price of 1 BTC in USD
-   * @param freeosprice The price of 1 FREEOS in USD
-   */
-  [[eosio::action]]
-  void storeprices(name user, double btcprice, double freeosprice) {
-    require_auth(user);
-
-    name btc_symbol = name("btc");
-    name freeos_symbol = name("freeos");
-
-    prices_index prices_table(get_self(), get_self().value);
-
-    // BTC
-    if (btcprice > 0.0) {
-      
-      auto btc_price_iterator = prices_table.find(btc_symbol.value);
-
-      if (btc_price_iterator == prices_table.end()) {
-        // emplace
-        prices_table.emplace(get_self(), [&](auto &p) {
-          p.currency = btc_symbol;
-          p.usdprice = btcprice;
-          p.ticktime = current_time_point();
-          p.updatedby = user;
-        });
-      } else {
-        // modify if the price has changed
-        prices_table.modify(btc_price_iterator, get_self(), [&](auto &p) { 
-          p.usdprice = btcprice;
-          p.ticktime = current_time_point();
-          p.updatedby = user;
-        });        
-      }
-    }
-
-    // FREEOS
-    if (freeosprice > 0.0) {
-      
-      auto freeos_price_iterator = prices_table.find(freeos_symbol.value);
-
-      if (freeos_price_iterator == prices_table.end()) {
-        // emplace
-        prices_table.emplace(get_self(), [&](auto &p) {
-          p.currency = freeos_symbol;
-          p.usdprice = freeosprice;
-          p.ticktime = current_time_point();
-          p.updatedby = user;
-        });
-      } else {
-        // modify if the price has changed
-        prices_table.modify(freeos_price_iterator, get_self(), [&](auto &p) { 
-          p.usdprice = freeosprice;
-          p.ticktime = current_time_point();
-          p.updatedby = user;
-        });        
-      }
-    }
-    
-  }
-
+  
   /**
    * init action is called by the contract owner to set the start time of the auctions
    * 
@@ -163,67 +99,7 @@ void reguser(name user) {
   }
 }
 
-  
-  /**
-   * storeprices function takes two double values as arguments, and it doesn't return anything
-   * 
-   * @todo Needs implementation as an action
-   * 
-   * @param btc_price The current price of Bitcoin in USD
-   * @param freeos_price The price of the freeos token in USD
-   */
-  void storeprices(double btc_price, double freeos_price) {
-
-
-  }
-
-  
-  /**
-   * storebtc action stores the current time and the current BTC price in the btcprice table
-   * 
-   * @param btcprice the price of bitcoin in USD
-   */
-  [[eosio::action]]
-  void storebtc(uint32_t btcprice) {
-
-    // an invalid or unobtainable btc price is indicated by 0 passed by the frontend - do not store
-    if (btcprice == 0) return;
-
-    time_point now = current_time_point();
-
-    // open the btcprice table
-    btcprice_index btcprice_table(get_self(), get_self().value);
-    
-    // add the btc price tick
-    btcprice_table.emplace(get_self(), [&](auto &btc) { btc.ticktime = now; btc.usdprice = btcprice; });
-  }
-
   using version_action = action_wrapper<"version"_n, &cronacle::version>;
-
-
-  /**
-   * storeid action take a user's Proton account name and an internet computer principal id and stores it in the user table
-   * 
-   * @param user The account name of the user
-   * @param principal The principal that is being stored.
-   */
-  [[eosio::action]]
-  void storeid(name user, std::string principal) {
-    time_point now = current_time_point();
-
-    // open the user table
-    users_index users_table(get_self(), get_self().value);
-
-    auto user_iterator = users_table.find(user.value);
-
-    if (user_iterator != users_table.end()) {
-      // modify
-      users_table.modify(user_iterator, get_self(), [&](auto &usr) { usr.time = now; usr.dfinity_principal = principal; });
-    } else {
-      // emplace
-      users_table.emplace(get_self(), [&](auto &usr) { usr.time = now; usr.proton_account = user; usr.dfinity_principal = principal; });
-    }    
-  }
 
 
 /**
@@ -608,14 +484,10 @@ void close_auction(uint64_t nft_id) {
  * @param user the user who is bidding
  * @param nft_id the id of the nft being bid on
  * @param bidamount the amount of credit the user is bidding
- * @param btcprice the current price of bitcoin in USD
  */
 [[eosio::action]]
-void bid(name user, uint64_t nft_id, asset bidamount, uint32_t btcprice) {
+void bid(name user, uint64_t nft_id, asset bidamount) {
   require_auth(user);
-
-  // store the btc price
-  storebtc(btcprice);
 
   // check that the user is registered
   users_index users_table(get_self(), user.value);
@@ -770,11 +642,6 @@ void maintain(string action, name user) {
 
   require_auth(get_self());
 
-  if (action == "btcsize") {
-
-    check(false, to_string(sizeof(btctick)));
-  }
-
   if (action == "unregister") {
     users_index users_table(get_self(), user.value);
     auto user_itr = users_table.begin();
@@ -819,15 +686,6 @@ void maintain(string action, name user) {
       }
     }
 
-    if (action == "clear prices") {
-      prices_index prices_table(get_self(), get_self().value);
-      auto price_iterator = prices_table.begin();
-
-      while (price_iterator != prices_table.end()) {
-        price_iterator = prices_table.erase(price_iterator);
-      }
-    }
-
     if (action == "clear system") {
       system_index system_table(get_self(), get_self().value);
       auto system_iterator = system_table.begin();
@@ -857,15 +715,6 @@ void maintain(string action, name user) {
 
       while (auctions_iterator != auctions_table.end()) {
         auctions_iterator = auctions_table.erase(auctions_iterator);
-      }
-    }
-
-    if (action == "clear btcprice") {
-      btcprice_index btcprice_table(get_self(), get_self().value);
-      auto btcprice_iterator = btcprice_table.begin();
-
-      while (btcprice_iterator != btcprice_table.end()) {
-        btcprice_iterator = btcprice_table.erase(btcprice_iterator);
       }
     }
 

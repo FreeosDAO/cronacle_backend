@@ -21,12 +21,6 @@ const name nft_account = name("atomicassets");
 // User contribution to Conditionally Limited Supply
 const asset UCLS = asset(1000000, POINT_CURRENCY_SYMBOL);
 
-#ifdef PRODUCTION
-  asset BID_INCREMENT = asset(1000000, CREDIT_CURRENCY_SYMBOL);
-#else
-  asset BID_INCREMENT = asset(10000, CREDIT_CURRENCY_SYMBOL);
-#endif
-
 
 // SYSTEM
 // system table
@@ -38,27 +32,6 @@ asset cls;
 uint64_t primary_key() const { return 0; } // return a constant to ensure a single-row table
 };
 using system_index = eosio::multi_index<"system"_n, system_record>;
-
-// PRICES
-struct[[ eosio::table("prices"), eosio::contract("cronacle") ]] price {
-    
-    name        currency;
-    double      usdprice;
-    time_point  ticktime;
-    name        updatedby;
-
-    uint64_t primary_key() const { return currency.value; }
-};
-using prices_index = eosio::multi_index<"prices"_n, price>;
-
-// BTC
-struct[[ eosio::table("btcprice"), eosio::contract("cronacle") ]] btctick {
-    time_point  ticktime;
-    uint32_t    usdprice;
-
-    uint64_t primary_key() const { return ticktime.sec_since_epoch(); }
-};
-using btcprice_index = eosio::multi_index<"btcprice"_n, btctick>;
 
 
 // USERS
