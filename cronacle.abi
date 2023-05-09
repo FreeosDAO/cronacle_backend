@@ -1,6 +1,6 @@
 {
     "____comment": "This file was generated with eosio-abigen. DO NOT EDIT ",
-    "version": "eosio::abi/1.1",
+    "version": "eosio::abi/1.2",
     "types": [],
     "structs": [
         {
@@ -18,6 +18,16 @@
                 {
                     "name": "nftid",
                     "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "admin_whitelist",
+            "base": "",
+            "fields": [
+                {
+                    "name": "account",
+                    "type": "name"
                 }
             ]
         },
@@ -70,10 +80,6 @@
                 {
                     "name": "bidamount",
                     "type": "asset"
-                },
-                {
-                    "name": "btcprice",
-                    "type": "uint32"
                 }
             ]
         },
@@ -206,6 +212,20 @@
             ]
         },
         {
+            "name": "updateadmin",
+            "base": "",
+            "fields": [
+                {
+                    "name": "account",
+                    "type": "name"
+                },
+                {
+                    "name": "remove",
+                    "type": "bool"
+                }
+            ]
+        },
+        {
             "name": "user",
             "base": "",
             "fields": [
@@ -303,6 +323,11 @@
             "ricardian_contract": ""
         },
         {
+            "name": "updateadmin",
+            "type": "updateadmin",
+            "ricardian_contract": ""
+        },
+        {
             "name": "version",
             "type": "version",
             "ricardian_contract": ""
@@ -314,6 +339,13 @@
         }
     ],
     "tables": [
+        {
+            "name": "admins",
+            "type": "admin_whitelist",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
         {
             "name": "auctions",
             "type": "auction",
@@ -364,6 +396,8 @@
             "key_types": []
         }
     ],
+    "kv_tables": {},
     "ricardian_clauses": [],
-    "variants": []
+    "variants": [],
+    "action_results": []
 }

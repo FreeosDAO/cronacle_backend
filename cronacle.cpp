@@ -1,26 +1,36 @@
 #include <eosio/eosio.hpp>
 #include <eosio/system.hpp>
+#include <eosio/asset.hpp>
+#include <stdlib.h>
 
 #include "cronacle.hpp"
 
 using namespace eosio;
 using namespace std;
 
-const std::string VERSION = "0.12.0";
+const std::string VERSION = "0.13.0";
 
 class [[eosio::contract("cronacle")]] cronacle : public eosio::contract {
 public:
 
   cronacle(name receiver, name code,  datastream<const char*> ds): contract(receiver, code, ds) {}
 
-
   /**
    * version action prints the version of the contract
    */
   [[eosio::action]]
   void version() {
+    extended_symbol currency = get_currency();
+    symbol currency_symbol = currency.get_symbol();
+    unsigned multiplier;
 
-    string version_message = "Version = " + VERSION;
+    multiplier = intPower(10, currency_symbol.precision());
+
+    string version_message = "Version = " + VERSION
+     + " (" + to_string(currency_symbol.precision())
+     + "," + currency_symbol.code().to_string()
+     + "," + currency.get_contract().to_string()
+     + ")";
 
     check(false, version_message);
   }
@@ -112,7 +122,7 @@ void withdraw(name user) {
 
   require_auth(user);
 
-  asset zero_amount = asset(0, CREDIT_CURRENCY_SYMBOL);
+  asset zero_amount = asset(0, get_currency().get_symbol());
 
   asset withdrawal_amount = get_available_credit(user);
 
@@ -169,14 +179,17 @@ void refusefoobar(name user, name to, asset quantity, std::string memo) {
  * 
  * @return Nothing is being returned.
  */
-[[eosio::on_notify("freeostokens::transfer")]]
+[[eosio::on_notify("*::transfer")]]
 void credit(name user, name to, asset quantity, std::string memo) {
   if (user == get_self()) {
       return;
     }
 
   // check the symbol
-  check(quantity.symbol == CREDIT_CURRENCY_SYMBOL, ERR_CREDIT_CURRENCY_MESSAGE);
+  extended_symbol currency = get_currency();
+  symbol currency_symbol = currency.get_symbol();
+  check(quantity.symbol == currency_symbol, "You must credit your account with " + currency_symbol.code().to_string());
+  check(currency.get_contract() == get_first_receiver(), "source of token is not valid");
 
   check(to == get_self(), "recipient of credit is incorrect");
 
@@ -289,7 +302,7 @@ void add_bid(name user, uint64_t nft_id, asset bidamount) {
   auto amt_idx = bids_table.get_index<"byamount"_n>();
   auto amt_itr = amt_idx.rbegin();
 
-  asset bid_to_beat = asset(0, CREDIT_CURRENCY_SYMBOL); // initialise to zero bid
+  asset bid_to_beat = asset(0, get_currency().get_symbol()); // initialise to zero bid
   if (amt_itr != amt_idx.rend()) {
     bid_to_beat = amt_itr->bidamount;
   }
@@ -314,18 +327,21 @@ void add_bid(name user, uint64_t nft_id, asset bidamount) {
 
   end of debugging code */
 
+  extended_symbol currency = get_currency();
+  int currency_multiplier = intPower(10, currency.get_symbol().precision());
+
   // get the minimum bid increment parameter
   name minimumbid = name("minimumbid");
   parameters_index parameters_table(get_self(), get_self().value);
   auto minbid_itr = parameters_table.find(minimumbid.value);
   check(minbid_itr != parameters_table.end(), "minimumbid parameter is not defined");
-  asset MINIMUM_BID_INCREMENT = asset(stoi(minbid_itr->value) * 10000, CREDIT_CURRENCY_SYMBOL);
+  asset MINIMUM_BID_INCREMENT = asset(stoi(minbid_itr->value) * currency_multiplier, currency.get_symbol());
 
   // get the bidstep parameter
   name bidstep = name("bidstep");
   auto bidstep_itr = parameters_table.find(bidstep.value);
   check(bidstep_itr != parameters_table.end(), "bidstep parameter is not defined");
-  asset BIDSTEP_INCREMENT = asset(stoi(bidstep_itr->value) * 10000, CREDIT_CURRENCY_SYMBOL);
+  asset BIDSTEP_INCREMENT = asset(stoi(bidstep_itr->value) * currency_multiplier, currency.get_symbol());
 
   asset minimum_next_bid;
   if (bid_to_beat.amount == 0) {
@@ -377,7 +393,7 @@ void add_bid(name user, uint64_t nft_id, asset bidamount) {
  */
 asset get_available_credit(name user) {
   // default values
-  asset zero_credit = asset(0, CREDIT_CURRENCY_SYMBOL);
+  asset zero_credit = asset(0, get_currency().get_symbol());
   asset user_total_credit = zero_credit;
   asset winning_bid_amount = zero_credit;
 
@@ -655,19 +671,6 @@ void maintain(string action, name user) {
     credits_table.erase(credit_itr);
   }
 
-  if (action == "minimumbid") {
-    name minimumbid = name("minimumbid");
-    parameters_index parameters_table(get_self(), get_self().value);
-
-    auto minbid_itr = parameters_table.find(minimumbid.value);
-
-    check(minbid_itr != parameters_table.end(), "minimum bid parameter is not defined");
-
-    asset MINIMUM_BID_INCREMENT = asset(stoi(minbid_itr->value) * 1000000, CREDIT_CURRENCY_SYMBOL);
-
-    check(false, MINIMUM_BID_INCREMENT.to_string());
-  }
-
   if (action == "set cls") {
     system_index system_table(get_self(), get_self().value);
     auto system_iterator = system_table.begin();
@@ -727,26 +730,8 @@ void maintain(string action, name user) {
       }
     }
 
-    if (action == "tom bid") {
-      bids_index bids_table(get_self(), get_self().value);
-
-      bids_table.emplace(get_self(), [&](auto &b) {
-          b.bidtime = current_time_point();
-          b.bidder = name("tommccann");
-          b.bidamount = asset(1000000, CREDIT_CURRENCY_SYMBOL);
-          b.nftid = 4398046535359;
-        });
-    }
-
     if (action == "add bids") {
       bids_index bids_table(get_self(), get_self().value);
-
-      bids_table.emplace(get_self(), [&](auto &b) {
-          b.bidtime = current_time_point();
-          b.bidder = name("alanappleton");
-          b.bidamount = asset(2000000, CREDIT_CURRENCY_SYMBOL);
-          b.nftid = 4398046576805;
-        });
 
         /*
         bids_table.emplace(get_self(), [&](auto &b) {
@@ -756,13 +741,6 @@ void maintain(string action, name user) {
           b.nftid = 4398046576805;
         });
         */
-
-      bids_table.emplace(get_self(), [&](auto &b) {
-          b.bidtime = current_time_point();
-          b.bidder = name("celiacollins");
-          b.bidamount = asset(1000000, CREDIT_CURRENCY_SYMBOL);
-          b.nftid = 4398046576805;
-        });
     }
 
     if (action == "highest bid") {
@@ -780,7 +758,7 @@ void maintain(string action, name user) {
       auto amt_idx = bids_table.get_index<"byamount"_n>();
       auto amt_itr = amt_idx.rbegin();
 
-      asset bid_to_beat = asset(0, CREDIT_CURRENCY_SYMBOL); // initialise to zero bid
+      asset bid_to_beat = asset(0, get_currency().get_symbol()); // initialise to zero bid
       if (amt_itr != amt_idx.rend()) {
         bid_to_beat = amt_itr->bidamount;
       }
@@ -833,8 +811,10 @@ void addnft(name user, uint32_t number, uint64_t nftid) {
 
   require_auth(user);
 
-  check(user == get_self() || user == name("freeospromo"), "addnft requires a privileged account");
-
+  if (!isadmin(user)) {
+    check(user == get_self(), "action requires authority of the contract or an account listed in the admins table");
+  }
+  
   nfts_index nfts_table(get_self(), get_self().value);
 
   // check if the nft is not already in the list
@@ -875,7 +855,9 @@ void removenft(name user, uint32_t number) {
 
   require_auth(user);
 
-  check(user == get_self() || user == name("freeospromo"), "removenft requires a privileged account");
+  if (!isadmin(user)) {
+    check(user == get_self(), "action requires authority of the contract or an account listed in the admins table");
+  }
 
   // find the nft and erase it
   nfts_index nfts_table(get_self(), get_self().value);
@@ -938,6 +920,93 @@ void paramerase(name paramname) {
 
   // the parameter is in the table, so delete
   parameters_table.erase(parameter_iterator);
+}
+
+
+/**
+ * isadmin function checks whether the account is in the admins table
+ * 
+ * @param account The account name
+ * @return True if account is in the admins table, false if not in the admins table
+ */
+bool isadmin(name account) {
+  admins_index admins_table(get_self(), get_self().value);
+  auto admin_iterator = admins_table.find(account.value);
+
+  return (admin_iterator != admins_table.end());
+}
+
+
+
+/**
+ * updateadmin action adds or removes an admin account to/from the admins table
+ * 
+ * @pre requires authority of the contract
+ * 
+ * @param account The name of the account to be added or removed.
+ * @param remove Set to false to add account, true to remove account
+ */
+[[eosio::action]]
+void updateadmin(name account, bool remove) {
+  require_auth(_self);
+
+  admins_index admins_table(get_self(), get_self().value);
+  auto admin_iterator = admins_table.find(account.value);
+
+  if (!remove) {  // add admin
+    // check if the account is already in the table
+    check(admin_iterator == admins_table.end(), "account is already in the admins table");
+    admins_table.emplace(get_self(), [&](auto &admin) { admin.account = account; });
+  } else {        // remove admin
+    // check if the account is in the table
+    check(admin_iterator != admins_table.end(), "account is not in the admins table");
+
+    // the account is in the table, so delete
+    admins_table.erase(admin_iterator);
+  }  
+}
+
+
+/**
+ * get_currency function reads and parses the 'currency' parameter
+ * 
+ * @pre The currency parameter must be defined. The format is precision,code e.g. 4,FREEOS
+ * @return An extended_symbol representing the currency
+ */
+extended_symbol get_currency() {
+
+  char code[13];
+  uint8_t precision;
+  char contract[13];
+
+  name paramname = name("currency");
+  parameters_index parameters_table(get_self(), get_self().value);
+  auto parameter_iterator = parameters_table.find(paramname.value);
+
+  // check if the parameter is in the table or not
+  check(parameter_iterator != parameters_table.end(), "currency parameter is not defined");
+
+  string currency = parameter_iterator->value;
+  char* curr = currency.data();
+  sscanf(curr, "%d %s %s", &precision, code, contract);
+
+  // check(false, "get_currency: <" + to_string(precision) + "> <" + code + "> <" + contract + ">");
+
+  symbol currency_symbol = symbol(code, precision);
+  return extended_symbol(currency_symbol, name(contract));
+}
+
+
+/**
+ * intPower helper function to calculate exponent of an integer
+ * 
+ * @param x The integer to be raised to a power
+ * @param p The power to raise x by
+ */
+int intPower(int x, int p) {
+  if (p == 0) return 1;
+  if (p == 1) return x;
+  return x * intPower(x, p-1);
 }
 
 };

@@ -9,10 +9,6 @@ const string POINT_CURRENCY_CODE = "POINT";
 const uint8_t POINT_CURRENCY_PRECISION = 4;
 const symbol POINT_CURRENCY_SYMBOL = symbol(POINT_CURRENCY_CODE, POINT_CURRENCY_PRECISION);
 
-const std::string CREDIT_CURRENCY_CODE = "FREEOS";
-const std::string ERR_CREDIT_CURRENCY_MESSAGE = "you must credit your account with FREEOS";
-const uint8_t CREDIT_CURRENCY_PRECISION = 4;
-const symbol CREDIT_CURRENCY_SYMBOL = symbol(CREDIT_CURRENCY_CODE, CREDIT_CURRENCY_PRECISION);
 const std::string CREDIT_CURRENCY_CONTRACT = "freeostokens";
 
 // atomicassets constants
@@ -105,3 +101,12 @@ string value;
 uint64_t primary_key() const { return paramname.value; }
 };
 using parameters_index = eosio::multi_index<"parameters"_n, parameter>;
+
+// ADMIN WHITELIST
+// admin accounts table - a whitelist of which accounts can perform privileged actions: e.g. addnft and removenft
+struct[[ eosio::table("admins"), eosio::contract("cronacle") ]] admin_whitelist {
+  name account;
+
+  uint64_t primary_key() const { return account.value; }
+};
+using admins_index = eosio::multi_index<"admins"_n, admin_whitelist>;
